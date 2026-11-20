@@ -113,28 +113,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "=== Artifact API test ==="
-          curl -s -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -H "Content-Type: application/json" \
-            -d '{"name":"LiveContainer"}' \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" | head -3
-          echo ""
           echo "=== git push IPA branch ==="
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Stash current IPA files, create orphan branch
-          STASH_NAME="ipa-build-${GITHUB_RUN_ID}"
-          git stash push -m "$STASH_NAME" -- LiveContainer.ipa "LiveContainer+SideStore.ipa" || true
+          # Create orphan branch with only IPA files
           git checkout --orphan "build-${GITHUB_RUN_ID}"
           git rm -rf . > /dev/null 2>&1 || true
-          git stash pop || true
           ls -lh *.ipa
           if ls *.ipa 1>/dev/null 2>&1; then
             git add *.ipa
             git commit -m "LiveContainer IPA build #${GITHUB_RUN_NUMBER}"
-            git push -f origin "build-${GITHUB_RUN_ID}" 2>&1 || echo "Git push failed"
+            # Push with token auth
+            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            git push -f origin "build-${GITHUB_RUN_ID}" 2>&1 && echo "SUCCESS!" || echo "Git push failed"
             echo "Download: https://github.com/${GITHUB_REPOSITORY}/tree/build-${GITHUB_RUN_ID}"
           else
             echo "No IPA files found!"
