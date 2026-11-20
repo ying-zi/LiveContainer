@@ -152,6 +152,16 @@ struct LCTweakFolderView : View {
 
             }
             ToolbarItem(placement: .topBarTrailing) {
+                if isRoot {
+                    Button {
+                        sharedModel.showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("lc.tabView.settings".loc)
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 if !isTweakSigning {
                     Menu {
                         Button {

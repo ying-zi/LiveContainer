@@ -10,3 +10,5 @@ apps_nightly.json
 
 dist/
 .ipa_build/
+
+dl/
