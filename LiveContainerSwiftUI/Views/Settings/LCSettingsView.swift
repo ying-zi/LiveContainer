@@ -81,6 +81,14 @@ struct LCSettingsView: View {
         _store = State(initialValue: LCUtils.store())
     }
     
+    private var versionText: String {
+        LCUtils.getVersionInfo()
+    }
+    
+    private var bitInfoText: String {
+        "lc.settings.selected32BitEmulator".loc + ": " + selected32BitEmulatorName
+    }
+    
     private var selected32BitEmulatorName: String {
         guard !selected32BitEmulator.isEmpty else {
             return "lc.common.none".loc
@@ -296,14 +304,14 @@ struct LCSettingsView: View {
                 
                 VStack{
                     HStack(spacing: 6) {
-                        Text(LCUtils.getVersionInfo())
+                        Text(verbatim: versionText)
                             .foregroundStyle(.gray)
                             .onTapGesture(count: 5) {
                                 sharedModel.developerMode = true
                             }
-                        Text("·")
+                        Text(verbatim: "·")
                             .foregroundStyle(.gray)
-                        Text("lc.settings.selected32BitEmulator".loc + ": " + selected32BitEmulatorName)
+                        Text(verbatim: bitInfoText)
                             .font(.caption2)
                             .foregroundStyle(.gray)
                     }
