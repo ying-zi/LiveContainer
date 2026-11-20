@@ -30,11 +30,6 @@ struct LCTabView: View {
                     }
                     .tag(LCTabIdentifier.sources)
             }
-            LCAppListView()
-                .tabItem {
-                    Label("lc.tabView.apps".loc, systemImage: "square.stack.3d.up.fill")
-                }
-                .tag(LCTabIdentifier.apps)
             if DataManager.shared.model.multiLCStatus != 2 {
                 LCTweaksView()
                     .tabItem{
@@ -117,11 +112,11 @@ struct LCTabView: View {
     func dispatchURL(url: URL) {
         repeat {
             if url.isFileURL {
-                sharedModel.selectedTab = .apps
+                sharedModel.selectedTab = (DataManager.shared.model.multiLCStatus != 2) ? .sources : .settings
                 break
             }
             if url.scheme?.lowercased() == "sidestore" {
-                sharedModel.selectedTab = .apps
+                sharedModel.selectedTab = (DataManager.shared.model.multiLCStatus != 2) ? .sources : .settings
                 break
             }
             
@@ -131,7 +126,7 @@ struct LCTabView: View {
             
             switch host {
             case "livecontainer-launch", "install", "open-web-page", "open-url":
-                sharedModel.selectedTab = .apps
+                sharedModel.selectedTab = (DataManager.shared.model.multiLCStatus != 2) ? .sources : .settings
             case "certificate":
                 sharedModel.selectedTab = .settings
             case "source":
