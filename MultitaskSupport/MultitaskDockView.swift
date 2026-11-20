@@ -163,14 +163,18 @@ class AppInfoProvider {
         static let maxHeightRatioOfAvailableArea: CGFloat = 0.85
         
         // MARK: - Animation & Interaction
-        // Fixed size of the mini button shown when the dock is hidden at an edge
+        // Visual size of the mini button shown when the dock is hidden at an edge
         static let hiddenDockSize: CGFloat = 30.0
+        // Larger hit area around the mini button so it stays easy to tap
+        static let hiddenDockHitSize: CGFloat = 44.0
+        // Small gap kept between the mini button and the screen edge
+        static let hiddenEdgeMargin: CGFloat = 2.0
         // Opacity of the mini button while hidden, so it always stays visible
         static let hiddenDockOpacity: Double = 0.5
         // Seconds of inactivity after snapping to an edge before the dock collapses
         static let autoCollapseDelay: TimeInterval = 3.0
         // Delay between folding the dock and shrinking it into the mini button
-        static let collapseToMiniDelay: TimeInterval = 0.2
+        static let collapseToMiniDelay: TimeInterval = 0.3
         static var hideGestureThreshold: CGFloat {
             get {
                 let ans = LCUtils.appGroupUserDefault.double(forKey: "LCDockWidth")
@@ -204,6 +208,8 @@ class AppInfoProvider {
     }
     
     private var autoCollapseTimer: Timer?
+    private var leftEdgeGesture: UIScreenEdgePanGestureRecognizer?
+    private var rightEdgeGesture: UIScreenEdgePanGestureRecognizer?
     
     // Calculate adaptive dock width (auto-adjust when exceeding safe area)
     public var dockWidth: CGFloat {
@@ -280,8 +286,12 @@ class AppInfoProvider {
     
     private var isFlushToEdge: Bool {
         guard let frame = hostingController?.view.frame, let window = keyWindow else { return false }
-        let tolerance: CGFloat = 2
-        return abs(frame.minX) <= tolerance || abs(frame.maxX - window.bounds.width) <= tolerance
+        let width = frame.width
+        let screenWidth = window.bounds.width
+        let leftX = calculateTargetX(isDockHidden: false, isOnRightSide: false, dockWidth: width, screenWidth: screenWidth)
+        let rightX = calculateTargetX(isDockHidden: false, isOnRightSide: true, dockWidth: width, screenWidth: screenWidth)
+        let tolerance: CGFloat = 4
+        return abs(frame.minX - leftX) <= tolerance || abs(frame.minX - rightX) <= tolerance
     }
 
     public var safeAreaInsets: UIEdgeInsets {
@@ -351,7 +361,7 @@ class AppInfoProvider {
 
         let screenBounds = keyWindow!.bounds
         let currentDockWidth = self.dockWidth
-        let targetWidth = self.isDockHidden ? Constants.hiddenDockSize : currentDockWidth
+        let targetWidth = self.isDockHidden ? Constants.hiddenDockHitSize : currentDockWidth
         
         let dockHeight = calculateTargetDockHeight(forWidth: currentDockWidth)
 
@@ -375,7 +385,7 @@ class AppInfoProvider {
 
     private func calculateTargetDockHeight(forWidth width: CGFloat) -> CGFloat {
         if isDockHidden {
-            return Constants.hiddenDockSize
+            return Constants.hiddenDockHitSize
         }
         if isCollapsed {
             let collapsedHeight = collapsedDockHeight(for: width)
@@ -402,9 +412,21 @@ class AppInfoProvider {
             }
         }
         
-        // Hidden: a fixed-size mini button flush with the screen edge
+        // Hidden: mini button with a larger invisible hit area, kept near the edge
         if isDockHidden {
-            ans = isOnRightSide ? screenWidth - Constants.hiddenDockSize : 0
+            let extra = (Constants.hiddenDockHitSize - Constants.hiddenDockSize) / 2
+            let margin = Constants.hiddenEdgeMargin
+            if isOnRightSide {
+                ans = screenWidth - Constants.hiddenDockSize - extra - margin
+                if self.hostingController?.view.window?.windowScene?.interfaceOrientation == UIInterfaceOrientation.landscapeLeft {
+                    ans -= safeInsets.right
+                }
+            } else {
+                ans = margin - extra
+                if self.hostingController?.view.window?.windowScene?.interfaceOrientation == UIInterfaceOrientation.landscapeRight {
+                    ans += safeInsets.left
+                }
+            }
         }
         
         return ans;
@@ -467,6 +489,9 @@ class AppInfoProvider {
         
         DispatchQueue.main.async {
             self.isVisible = true
+            // A new session always starts expanded at its saved position
+            self.isDockHidden = false
+            self.isCollapsed = false
             
             let screenBounds = keyWindow.bounds
             let currentDockWidth = self.dockWidth
@@ -509,9 +534,8 @@ class AppInfoProvider {
     }
     
     @objc public func hideDock() {
-        guard isVisible, let hostingController = hostingController else { return }
-        
         self.cancelAutoCollapse()
+        guard isVisible, let hostingController = hostingController else { return }
         
         DispatchQueue.main.async {
             UIView.animate(
@@ -569,7 +593,7 @@ class AppInfoProvider {
         
         guard isSwipingInward else { return false }
         
-        self.showDockFromHidden()
+        self.expandDockFromHidden()
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
         return true
@@ -580,14 +604,12 @@ class AppInfoProvider {
         let horizontalDistance = abs(translation.width)
         let verticalDistance = abs(translation.height)
         
-        guard !self.isDockHidden, horizontalDistance > verticalDistance else {
+        guard horizontalDistance > verticalDistance else {
             return false
         }
         
         let screenWidth = keyWindow!.bounds.width
         let isOnRightSide = originalFrame.origin.x > screenWidth / 2
-        
-        guard !self.isDockHidden else { return false }
         
         let isMovingToOtherSide = (isOnRightSide && translation.width < 0) || (!isOnRightSide && translation.width > 0)
         guard isMovingToOtherSide else { return false }
@@ -802,21 +824,10 @@ class AppInfoProvider {
     // Tap on the mini button: unfold and restore the dock at its original size
     @objc public func expandDockFromHidden() {
         DispatchQueue.main.async {
+            self.cancelAutoCollapse()
             self.isDockHidden = false
             self.isCollapsed = false
-            self.settingsChanged.toggle()
-            self.updateDockFrame()
-            self.setupEdgeGestureRecognizers()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                self.scheduleAutoCollapse()
-            }
-        }
-    }
-    
-    @objc public func showDockFromHidden() {
-        DispatchQueue.main.async {
-            self.isDockHidden = false
-            self.updateDockFrame()
+            self.notifyDockCollapseChanged()
             self.setupEdgeGestureRecognizers()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
                 self.scheduleAutoCollapse()
@@ -826,6 +837,7 @@ class AppInfoProvider {
     
     @objc public func hideDockToSide() {
         DispatchQueue.main.async {
+            self.cancelAutoCollapse()
             self.isDockHidden = true
             self.updateDockFrame()
             self.setupEdgeGestureRecognizers()
@@ -837,18 +849,25 @@ class AppInfoProvider {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let keyWindow = windowScene.windows.first else { return }
         
-        keyWindow.gestureRecognizers?.removeAll { gesture in
-            return gesture is UITapGestureRecognizer || gesture is UIScreenEdgePanGestureRecognizer
+        if let leftEdgeGesture {
+            keyWindow.removeGestureRecognizer(leftEdgeGesture)
+            self.leftEdgeGesture = nil
+        }
+        if let rightEdgeGesture {
+            keyWindow.removeGestureRecognizer(rightEdgeGesture)
+            self.rightEdgeGesture = nil
         }
         
         if isDockHidden {
             let leftEdgeGesture = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleEdgeSwipe(_:)))
             leftEdgeGesture.edges = .left
             keyWindow.addGestureRecognizer(leftEdgeGesture)
+            self.leftEdgeGesture = leftEdgeGesture
             
             let rightEdgeGesture = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleEdgeSwipe(_:)))
             rightEdgeGesture.edges = .right
             keyWindow.addGestureRecognizer(rightEdgeGesture)
+            self.rightEdgeGesture = rightEdgeGesture
         }
     }
     
@@ -861,7 +880,7 @@ class AppInfoProvider {
         let swipeDistance = abs(translation.x)
         
         if swipeDistance > Constants.edgeSwipeThreshold {
-            showDockFromHidden()
+            expandDockFromHidden()
         }
     }
     
@@ -904,11 +923,13 @@ public struct MultitaskDockSwiftView: View {
                                 CollapseButtonView()
                                     .onTapGesture {
                                         dockManager.toggleDockCollapse()
+                                        dockManager.scheduleAutoCollapse()
                                     }
                                 
                                 MinimizeAllButtonView()
                                     .onTapGesture {
                                         dockManager.minimizeAllWindows()
+                                        dockManager.scheduleAutoCollapse()
                                     }
                                 
                                 ForEach(dockManager.apps) { app in
@@ -963,7 +984,8 @@ public struct MultitaskDockSwiftView: View {
                 
                 if dockManager.isPositionChangeGesture(for: hcFrame, translation: value.translation) {
                     let screenBounds = dockManager.keyWindow!.bounds
-                    let targetX = dockManager.calculateTargetX(isDockHidden: false, isOnRightSide: currentPhysicalFrame.midX > screenBounds.width / 2, dockWidth: dockManager.dockWidth, screenWidth: screenBounds.width)
+                    let targetWidth = dockManager.isDockHidden ? MultitaskDockManager.Constants.hiddenDockHitSize : dockManager.dockWidth
+                    let targetX = dockManager.calculateTargetX(isDockHidden: dockManager.isDockHidden, isOnRightSide: currentPhysicalFrame.midX > screenBounds.width / 2, dockWidth: targetWidth, screenWidth: screenBounds.width)
                     
                     let safeAreaInsets = dockManager.safeAreaInsets
                     let dockVerticalMargin = MultitaskDockManager.Constants.dockVerticalMargin
@@ -986,6 +1008,11 @@ public struct MultitaskDockSwiftView: View {
                     
                     DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration) {
                         dockManager.updateFrameAfterAnimation(finalOffset: newOffset)
+                        
+                        // Refresh the mini arrow direction after changing sides
+                        if dockManager.isDockHidden {
+                            dockManager.settingsChanged.toggle()
+                        }
                         
                         self.dragOffset = .zero
                         
@@ -1068,7 +1095,11 @@ struct MiniDockView: View {
             width: MultitaskDockManager.Constants.hiddenDockSize,
             height: MultitaskDockManager.Constants.hiddenDockSize
         )
-        .contentShape(Circle())
+        .frame(
+            width: MultitaskDockManager.Constants.hiddenDockHitSize,
+            height: MultitaskDockManager.Constants.hiddenDockHitSize
+        )
+        .contentShape(Rectangle())
         .onTapGesture {
             dockManager.expandDockFromHidden()
         }
@@ -1233,6 +1264,7 @@ struct AppIconView: View {
                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
                 impactFeedback.impactOccurred()
                 let _ = dockManager.bringMultitaskViewToFront(uuid: app.appUUID, from: location)
+                dockManager.scheduleAutoCollapse()
             }
         )
         .contentShape(Rectangle())
