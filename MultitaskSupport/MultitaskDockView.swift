@@ -905,11 +905,26 @@ public struct MultitaskDockSwiftView: View {
         return max(basePadding, basePadding + extraPadding)
     }
     
+    // Scale the native collapsed square down to a small fixed size when hidden
+    private var hiddenScale: CGFloat {
+        let natural = max(dockManager.adaptiveIconSize, 1)
+        return min(1, MultitaskDockManager.Constants.hiddenDockSize / natural)
+    }
+    
     public var body: some View {
         GeometryReader { g in
             Group {
                 if dockManager.isDockHidden {
-                    MiniDockView()
+                    CollapsedDockView(isHidden: false)
+                        .scaleEffect(hiddenScale)
+                        .frame(
+                            width: MultitaskDockManager.Constants.hiddenDockHitSize,
+                            height: MultitaskDockManager.Constants.hiddenDockHitSize
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            dockManager.expandDockFromHidden()
+                        }
                 } else {
                     VStack(spacing: 8) {
                         if dockManager.isCollapsed {
@@ -1072,38 +1087,6 @@ public struct MultitaskDockSwiftView: View {
     }
     
     public init() {}
-}
-
-// MARK: - Mini Dock Button
-@available(iOS 16.0, *)
-struct MiniDockView: View {
-    @EnvironmentObject var dockManager: MultitaskDockManager
-    
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(Color.black.opacity(0.55))
-                .overlay(
-                    Circle()
-                        .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                )
-            Image(systemName: dockManager.isOnRightSide ? "chevron.left" : "chevron.right")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(.white)
-        }
-        .frame(
-            width: MultitaskDockManager.Constants.hiddenDockSize,
-            height: MultitaskDockManager.Constants.hiddenDockSize
-        )
-        .frame(
-            width: MultitaskDockManager.Constants.hiddenDockHitSize,
-            height: MultitaskDockManager.Constants.hiddenDockHitSize
-        )
-        .contentShape(Rectangle())
-        .onTapGesture {
-            dockManager.expandDockFromHidden()
-        }
-    }
 }
 
 // MARK: - Collapsed Dock View
