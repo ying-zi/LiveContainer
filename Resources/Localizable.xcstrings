@@ -8850,6 +8850,12 @@
             "state" : "translated",
             "value" : "签名工具"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "簽名工具"
+          }
         }
       }
     },
@@ -26215,6 +26221,52 @@
         }
       }
     },
+    "lc.settings.refreshCertificate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh Certificate"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刷新证书"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新整理證書"
+          }
+        }
+      }
+    },
+    "lc.settings.importCertificateFromSigner" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Certificate from Signing Tool"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从签名工具导入证书"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從簽名工具匯入證書"
+          }
+        }
+      }
+    },
     "lc.settings.removeCertificate" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -26507,6 +26559,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Default 32-bit emulator"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认32位模拟器"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "預設32位模擬器"
           }
         }
       }

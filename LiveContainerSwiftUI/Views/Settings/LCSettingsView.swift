@@ -72,7 +72,6 @@ struct LCSettingsView: View {
     
     @State private var isViewAppeared = false
     
-    let storeName = LCUtils.getStoreName()
     private let dismissable: Bool
     
     init(dismissable: Bool = false) {
@@ -134,7 +133,10 @@ struct LCSettingsView: View {
                             Button {
                                 dismiss()
                             } label: {
-                                Label("lc.common.close".loc, systemImage: "chevron.left")
+                                HStack(spacing: 2) {
+                                    Image(systemName: "chevron.left")
+                                    Text("lc.common.close".loc)
+                                }
                             }
                         }
                     }
@@ -246,9 +248,9 @@ struct LCSettingsView: View {
                         Task{ await importCertificateFromSideStore() }
                     } label: {
                         if certificateDataFound {
-                            Text("lc.settings.refreshCertificateFromStore %@".localizeWithFormat(storeName))
+                            Text("lc.settings.refreshCertificate".loc)
                         } else {
-                            Text("lc.settings.importCertificateFromStore %@".localizeWithFormat(storeName))
+                            Text("lc.settings.importCertificateFromSigner".loc)
                         }
                     }
                 }
@@ -510,7 +512,6 @@ struct LCSettingsView: View {
     private var navigationTitleText: String {
         return dismissable ? "lc.tabView.settings".loc : ""
     }
-
 
     func clearNotifications() {
         let notificationCenter = UNUserNotificationCenter.current()

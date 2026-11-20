@@ -77,7 +77,7 @@ struct LCMultiLCManagementView : View, InstallAnotherLCButtonDelegate {
     @StateObject private var installLC2Alert = AlertHelper<Int>()
     @State private var launchPriorityItems: [LaunchPriorityLC] = []
 
-    let storeName = LCUtils.getStoreName()
+    let signerName = "lc.appSettings.signer".loc
 
     var body: some View {
         Form {
@@ -127,7 +127,7 @@ struct LCMultiLCManagementView : View, InstallAnotherLCButtonDelegate {
                 installLC2Alert.close(result: 0)
             }
         } message: {
-            Text("lc.settings.multiLCInstallAlertDesc %@".localizeWithFormat(storeName))
+            Text("lc.settings.multiLCInstallAlertDesc %@".localizeWithFormat(signerName))
         }
         .sheet(isPresented: $showShareSheet) {
             if let shareURL = shareURL {
