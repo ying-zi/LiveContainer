@@ -25,26 +25,23 @@ jobs:
     steps:
       - name: Checkout code
         run: |
-          git clone --depth 1 --recursive -b ${{ github.ref_name }} https://${{ github.repository }}.git .
-          git fetch --depth 1 origin ${{ github.sha }}
-          git checkout ${{ github.sha }}
-          git submodule update --init --recursive
+          # GitHub already checked out the repo, update submodules
+          echo "Workspace: $GITHUB_WORKSPACE"
+          cd $GITHUB_WORKSPACE
+          ls -la
+          git --version
+          git submodule update --init --recursive || echo "No submodules or update failed"
 
-      - name: Install Xcode 27.2
+      - name: Check Xcode version
         run: |
-          # Use xcodes or xcode-install to get Xcode 27.2
-          brew install xcodesorg/made/xcodes 2>/dev/null || true
-          XCODES_PATH=$(which xcodes 2>/dev/null)
-          if [ -n "$XCODES_PATH" ]; then
-            xcodes install 27.2 || true
-          fi
-          # Also try setup-xcode approach manually
-          if ! xcodebuild -version 2>/dev/null | grep -q "27"; then
-            echo "Xcode 27 not found, trying system default"
-          fi
-          xcodebuild -version
-          ls /Applications/ | grep -i xcode || echo "Checking Xcode paths..."
-          ls /Applications/Xcode*.app 2>/dev/null || true
+          echo "=== Default Xcode ==="
+          xcodebuild -version || echo "No xcodebuild"
+          echo "=== All Xcodes ==="
+          ls /Applications/ | grep -i xcode || echo "None in /Applications"
+          echo "=== Swift version ==="
+          swift --version 2>/dev/null || echo "No swift"
+          echo "=== SDKs ==="
+          xcrun --showsdks 2>/dev/null | head -20 || true
 
       - name: Set Scheme
         id: scheme
