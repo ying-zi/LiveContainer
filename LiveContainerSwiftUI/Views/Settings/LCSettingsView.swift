@@ -82,7 +82,7 @@ struct LCSettingsView: View {
     }
     
     private var versionFooter: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Text(verbatim: versionText)
                 .foregroundStyle(.gray)
                 .onTapGesture(count: 5) {
@@ -91,17 +91,28 @@ struct LCSettingsView: View {
             Text(verbatim: "·")
                 .foregroundStyle(.gray)
             Text(verbatim: bitInfoText)
-                .font(.caption2)
                 .foregroundStyle(.gray)
         }
+        .font(.caption)
     }
     
     private var versionText: String {
-        LCUtils.getVersionInfo()
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        return "Version \(version)"
     }
     
     private var bitInfoText: String {
         "lc.settings.selected32BitEmulator".loc + ": " + selected32BitEmulatorName
+    }
+    
+    private var edgeSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 30, coordinateSpace: .global)
+            .onEnded { value in
+                guard dismissable,
+                      value.startLocation.x < 40,
+                      value.translation.width > 100 else { return }
+                dismiss()
+            }
     }
     
     private var selected32BitEmulatorName: String {
@@ -116,17 +127,19 @@ struct LCSettingsView: View {
     var body: some View {
         NavigationView {
             certificateModifiers
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                if dismissable {
-                    Button("lc.common.close".loc) {
-                        dismiss()
+                .simultaneousGesture(edgeSwipeGesture)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        if dismissable {
+                            Button {
+                                dismiss()
+                            } label: {
+                                Label("lc.common.close".loc, systemImage: "chevron.left")
+                            }
+                        }
                     }
                 }
-            }
         }
-        .navigationTitle(navigationTitleText)
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear() {
             if !isViewAppeared {
