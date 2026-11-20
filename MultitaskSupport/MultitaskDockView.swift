@@ -163,14 +163,14 @@ class AppInfoProvider {
         static let maxHeightRatioOfAvailableArea: CGFloat = 0.85
         
         // MARK: - Animation & Interaction
-        // Fraction of the dock width left visible when the dock is hidden at an edge
-        static let hiddenVisibleRatio: CGFloat = 0.5
-        // Opacity of the dock while hidden at an edge, so it always stays visible
+        // Fixed size of the mini button shown when the dock is hidden at an edge
+        static let hiddenDockSize: CGFloat = 44.0
+        // Opacity of the mini button while hidden, so it always stays visible
         static let hiddenDockOpacity: Double = 0.5
-        // Scale applied while hidden so the collapse arrow stays fully on screen
-        static let hiddenDockScale: CGFloat = 0.6
         // Seconds of inactivity after snapping to an edge before the dock collapses
         static let autoCollapseDelay: TimeInterval = 3.0
+        // Delay between folding the dock and shrinking it into the mini button
+        static let collapseToMiniDelay: TimeInterval = 0.2
         static var hideGestureThreshold: CGFloat {
             get {
                 let ans = LCUtils.appGroupUserDefault.double(forKey: "LCDockWidth")
@@ -351,6 +351,7 @@ class AppInfoProvider {
 
         let screenBounds = keyWindow!.bounds
         let currentDockWidth = self.dockWidth
+        let targetWidth = self.isDockHidden ? Constants.hiddenDockSize : currentDockWidth
         
         let dockHeight = calculateTargetDockHeight(forWidth: currentDockWidth)
 
@@ -358,14 +359,14 @@ class AppInfoProvider {
         let isOnRightSide = (currentFrame.midX > screenBounds.width / 2) || (currentFrame.isEmpty)
         let targetX = calculateTargetX(isDockHidden: self.isDockHidden, 
                                     isOnRightSide: isOnRightSide, 
-                                    dockWidth: currentDockWidth, 
+                                    dockWidth: targetWidth, 
                                     screenWidth: screenBounds.width)
 
         let targetY = calculateTargetY(for: currentFrame, 
                                     dockHeight: dockHeight, 
                                     screenHeight: screenBounds.height)
         
-        let newFrame = CGRect(x: targetX, y: targetY, width: currentDockWidth, height: dockHeight)
+        let newFrame = CGRect(x: targetX, y: targetY, width: targetWidth, height: dockHeight)
         
         applyNewFrame(newFrame, for: hostingController, animated: animated)
     }
@@ -373,6 +374,9 @@ class AppInfoProvider {
     // MARK: - Frame Calculation Helpers
 
     private func calculateTargetDockHeight(forWidth width: CGFloat) -> CGFloat {
+        if isDockHidden {
+            return Constants.hiddenDockSize
+        }
         if isCollapsed {
             let collapsedHeight = collapsedDockHeight(for: width)
             return max(Constants.minCollapsedHeight, collapsedHeight)
@@ -398,10 +402,9 @@ class AppInfoProvider {
             }
         }
         
-        // Keep at least half of the dock on screen so it stays reachable
+        // Hidden: a fixed-size mini button flush with the screen edge
         if isDockHidden {
-            let visibleWidth = dockWidth * Constants.hiddenVisibleRatio
-            ans = isOnRightSide ? screenWidth - visibleWidth : visibleWidth - dockWidth
+            ans = isOnRightSide ? screenWidth - Constants.hiddenDockSize : 0
         }
         
         return ans;
@@ -775,16 +778,37 @@ class AppInfoProvider {
     @objc public func scheduleAutoCollapse() {
         DispatchQueue.main.async {
             self.cancelAutoCollapse()
-            guard self.isVisible, !self.isDockHidden, !self.isCollapsed, self.isFlushToEdge else { return }
+            guard self.isVisible, !self.isDockHidden, self.isFlushToEdge else { return }
             self.autoCollapseTimer = Timer.scheduledTimer(
                 withTimeInterval: Constants.autoCollapseDelay,
                 repeats: false
             ) { [weak self] _ in
                 guard let self, self.isVisible, !self.isDockHidden, self.isFlushToEdge else { return }
-                if !self.isCollapsed {
+                if self.isCollapsed {
+                    // Already folded: shrink straight into the mini button
+                    self.hideDockToSide()
+                } else {
+                    // Fold the arrow first, then shrink and fade into the mini button
                     self.toggleDockCollapse()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Constants.collapseToMiniDelay) {
+                        guard self.isVisible, !self.isDockHidden else { return }
+                        self.hideDockToSide()
+                    }
                 }
-                self.hideDockToSide()
+            }
+        }
+    }
+    
+    // Tap on the mini button: unfold and restore the dock at its original size
+    @objc public func expandDockFromHidden() {
+        DispatchQueue.main.async {
+            self.isDockHidden = false
+            self.isCollapsed = false
+            self.settingsChanged.toggle()
+            self.updateDockFrame()
+            self.setupEdgeGestureRecognizers()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                self.scheduleAutoCollapse()
             }
         }
     }
@@ -864,57 +888,52 @@ public struct MultitaskDockSwiftView: View {
     
     public var body: some View {
         GeometryReader { g in
-            VStack(spacing: 8) {
-                if dockManager.isCollapsed {
-                    CollapsedDockView(isHidden: dockManager.isDockHidden)
-                        .onTapGesture {
-                            if dockManager.isDockHidden {
-                                dockManager.showDockFromHidden()
-                            } else {
-                                dockManager.toggleDockCollapse()
-                            }
-                        }
+            Group {
+                if dockManager.isDockHidden {
+                    MiniDockView()
                 } else {
                     VStack(spacing: 8) {
-                        CollapseButtonView()
-                            .onTapGesture {
-                                dockManager.toggleDockCollapse()
+                        if dockManager.isCollapsed {
+                            CollapsedDockView(isHidden: false)
+                                .onTapGesture {
+                                    dockManager.toggleDockCollapse()
+                                    dockManager.scheduleAutoCollapse()
+                                }
+                        } else {
+                            VStack(spacing: 8) {
+                                CollapseButtonView()
+                                    .onTapGesture {
+                                        dockManager.toggleDockCollapse()
+                                    }
+                                
+                                MinimizeAllButtonView()
+                                    .onTapGesture {
+                                        dockManager.minimizeAllWindows()
+                                    }
+                                
+                                ForEach(dockManager.apps) { app in
+                                    AppIconView(app: app)
+                                }
                             }
-                        
-                        MinimizeAllButtonView()
-                            .onTapGesture {
-                                dockManager.minimizeAllWindows()
-                            }
-                        
-                        ForEach(dockManager.apps) { app in
-                            AppIconView(app: app)
+                        }
+                    }
+                    .padding(dynamicPadding)
+                    .modifier { content in
+                        if #available(iOS 26.0, *), SharedModel.isLiquidGlassEnabled {
+                            content.glassEffect(.regular, in: .rect(cornerRadius: 15))
+                        } else {
+                            content.background(
+                                RoundedRectangle(cornerRadius: 15)
+                                    .fill(Color.black.opacity(0.7))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 15)
+                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
                         }
                     }
                 }
             }
-            .padding(dynamicPadding)
-            .modifier { content in
-                if #available(iOS 26.0, *), SharedModel.isLiquidGlassEnabled {
-                    content.glassEffect(.regular, in: .rect(cornerRadius: 15))
-                } else {
-                    content.background(
-                        RoundedRectangle(cornerRadius: 15)
-                            .fill(Color.black.opacity(dockManager.isDockHidden ? 0.3 : 0.7))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 15)
-                                    .stroke(Color.white.opacity(dockManager.isDockHidden ? 0.1 : 0.3), lineWidth: 1)
-                            )
-                    )
-                }
-            }
-            .scaleEffect(
-                dockManager.isDockHidden
-                    ? MultitaskDockManager.Constants.hiddenDockScale
-                    : (dockManager.isVisible ? 1.0 : MultitaskDockManager.Constants.initialScale),
-                anchor: dockManager.isDockHidden
-                    ? (dockManager.isOnRightSide ? .leading : .trailing)
-                    : .center
-            )
             .opacity(dockManager.isDockHidden ? MultitaskDockManager.Constants.hiddenDockOpacity : 1.0)
             .offset(dragOffset)
             .position(x: g.size.width / 2, y: g.size.height / 2)
@@ -1026,6 +1045,34 @@ public struct MultitaskDockSwiftView: View {
     }
     
     public init() {}
+}
+
+// MARK: - Mini Dock Button
+@available(iOS 16.0, *)
+struct MiniDockView: View {
+    @EnvironmentObject var dockManager: MultitaskDockManager
+    
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.black.opacity(0.55))
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                )
+            Image(systemName: dockManager.isOnRightSide ? "chevron.left" : "chevron.right")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.white)
+        }
+        .frame(
+            width: MultitaskDockManager.Constants.hiddenDockSize - 4,
+            height: MultitaskDockManager.Constants.hiddenDockSize - 4
+        )
+        .contentShape(Circle())
+        .onTapGesture {
+            dockManager.expandDockFromHidden()
+        }
+    }
 }
 
 // MARK: - Collapsed Dock View
