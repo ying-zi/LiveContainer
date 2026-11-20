@@ -163,10 +163,10 @@ class AppInfoProvider {
         static let maxHeightRatioOfAvailableArea: CGFloat = 0.85
         
         // MARK: - Animation & Interaction
-        // Width of the visible grip left on screen when the dock is hidden at an edge
-        static let hiddenHandleWidth: CGFloat = 14.0
-        // Opacity of the dock body while hidden; the grip itself stays fully visible
-        static let hiddenDockOpacity: Double = 0.45
+        // Fraction of the dock width left visible when the dock is hidden at an edge
+        static let hiddenVisibleRatio: CGFloat = 0.5
+        // Opacity of the dock while hidden at an edge, so it always stays visible
+        static let hiddenDockOpacity: Double = 0.5
         static var hideGestureThreshold: CGFloat {
             get {
                 let ans = LCUtils.appGroupUserDefault.double(forKey: "LCDockWidth")
@@ -265,11 +265,6 @@ class AppInfoProvider {
 
     public var keyWindow: UIWindow? {
         (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.windows.first
-    }
-    
-    public var isOnRightSide: Bool {
-        guard let frame = hostingController?.view.frame, let window = keyWindow else { return true }
-        return frame.midX > window.bounds.width / 2
     }
 
     public var safeAreaInsets: UIEdgeInsets {
@@ -386,9 +381,10 @@ class AppInfoProvider {
             }
         }
         
-        // Keep a fixed-width grip visible on screen so the dock can always be found
+        // Keep at least half of the dock on screen so it stays reachable
         if isDockHidden {
-            ans = isOnRightSide ? screenWidth - Constants.hiddenHandleWidth : Constants.hiddenHandleWidth - dockWidth
+            let visibleWidth = dockWidth * Constants.hiddenVisibleRatio
+            ans = isOnRightSide ? screenWidth - visibleWidth : visibleWidth - dockWidth
         }
         
         return ans;
@@ -867,11 +863,6 @@ public struct MultitaskDockSwiftView: View {
             .offset(dragOffset)
             .position(x: g.size.width / 2, y: g.size.height / 2)
         }
-        .overlay(alignment: dockManager.isOnRightSide ? .leading : .trailing) {
-            if dockManager.isDockHidden {
-                HiddenDockHandleView(isOnRightSide: dockManager.isOnRightSide)
-            }
-        }
         .ignoresSafeArea()
         .gesture(
             DragGesture(minimumDistance: 5)
@@ -970,32 +961,6 @@ public struct MultitaskDockSwiftView: View {
     }
     
     public init() {}
-}
-
-// MARK: - Hidden Dock Handle
-@available(iOS 16.0, *)
-struct HiddenDockHandleView: View {
-    @EnvironmentObject var dockManager: MultitaskDockManager
-    let isOnRightSide: Bool
-    
-    var body: some View {
-        ZStack {
-            Capsule()
-                .fill(Color.black.opacity(0.55))
-                .overlay(
-                    Capsule()
-                        .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                )
-            Image(systemName: isOnRightSide ? "chevron.compact.left" : "chevron.compact.right")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(.white)
-        }
-        .frame(width: 13, height: 58)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            dockManager.showDockFromHidden()
-        }
-    }
 }
 
 // MARK: - Collapsed Dock View
