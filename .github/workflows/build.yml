@@ -109,15 +109,28 @@ jobs:
         run: |
           sh .github/build_github.sh
 
-      - name: Upload IPA to Transfer.sh
+      - name: Upload IPA to Actions Artifact
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Uploading LiveContainer.ipa..."
-          URL1=$(curl -s --upload-file LiveContainer.ipa "https://transfer.sh/LiveContainer.ipa")
-          echo "LiveContainer.ipa: $URL1"
-          echo "Uploading LiveContainer+SideStore.ipa..."
-          URL2=$(curl -s --upload-file "LiveContainer+SideStore.ipa" "https://transfer.sh/LiveContainer+SideStore.ipa")
-          echo "LiveContainer+SideStore.ipa: $URL2"
-          echo "=== DOWNLOAD LINKS ==="
-          echo "$URL1" > $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "$URL2" >> $GITHUB_STEP_SUMMARY
+          API_BASE="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          # Get upload URL
+          UPLOAD_URL=$(curl -s -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"LiveContainer.ipa"}' \
+            "${API_BASE}/artifacts" | python3 -c "import sys,json; print(json.load(sys.stdin).get('upload_url',''))" 2>/dev/null)
+          if [ -n "$UPLOAD_URL" ]; then
+            echo "Upload URL: $UPLOAD_URL"
+            # Replace template params in upload URL
+            UPLOAD_URL=$(echo "$UPLOAD_URL" | sed 's/{?name,size}/?name=LiveContainer.ipa&size='$(stat -f%z LiveContainer.ipa)/)
+            curl -s -X PUT -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/zip" \
+              -T LiveContainer.ipa "$UPLOAD_URL" && echo "LiveContainer.ipa uploaded!" || echo "Upload failed"
+          else
+            echo "Could not get upload URL"
+          fi
+          # Also try uploading both files via simpler method
+          echo "=== Files available ==="
+          ls -lh *.ipa
