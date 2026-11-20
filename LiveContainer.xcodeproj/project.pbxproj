@@ -195,7 +195,6 @@
 				"AppIconGrey60x60@2x.png",
 				"AppIconGrey76x76@2x~ipad.png",
 				Assets.xcassets,
-				DefaultIcon.png,
 				Localizable.xcstrings,
 				Settings.bundle,
 				universal.js,
