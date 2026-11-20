@@ -117,14 +117,6 @@ struct LCMultiLCManagementView : View, InstallAnotherLCButtonDelegate {
             reloadLaunchPriorityItems()
         }
         .alert("lc.settings.multiLCInstall".loc, isPresented: $installLC2Alert.show) {
-            if(UserDefaults.sideStoreExist()) {
-                Button {
-                    installLC2Alert.close(result: 2)
-                } label: {
-                    Text("lc.settings.multiLCInstall.installWithBuiltInSideStore".loc)
-                }
-            }
-            
             Button {
                 installLC2Alert.close(result: 1)
             } label: {
@@ -208,18 +200,6 @@ struct LCMultiLCManagementView : View, InstallAnotherLCButtonDelegate {
             let packedIpaUrl = try LCUtils.archiveIPA(withBundleName: name, includingExtraInfoDict: extraInfo)
             
             shareURL = packedIpaUrl
-            
-            if(result == 2) {
-                let launchURLStr = packedIpaUrl.absoluteString
-                let bookmark = try packedIpaUrl.bookmarkData(
-                    options: URL.BookmarkCreationOptions(rawValue: 1 << 11),
-                    includingResourceValuesForKeys: nil,
-                    relativeTo: nil
-                )
-                LCUtils.appGroupUserDefault.set(bookmark, forKey: "LCLaunchExtensionFileBookmark")
-                LCUtils.openSideStore(urlStr: launchURLStr)
-                return
-            }
             
             showShareSheet = true
             

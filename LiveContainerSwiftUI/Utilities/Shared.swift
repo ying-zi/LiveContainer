@@ -222,33 +222,6 @@ extension Color {
     }
 }
 
-struct ImageDocument: FileDocument {
-    var data: Data
-    
-    static var readableContentTypes: [UTType] {
-        [UTType.image] // Specify that the document supports image files
-    }
-    
-    // Initialize with data
-    init(uiImage: UIImage) {
-        self.data = uiImage.pngData()!
-    }
-    
-    // Function to read the data from the file
-    init(configuration: ReadConfiguration) throws {
-        guard let data = configuration.file.regularFileContents else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-        self.data = data
-    }
-    
-    // Write data to the file
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        return FileWrapper(regularFileWithContents: data)
-    }
-}
-
-
 struct SiteAssociationDetailItem : Codable {
     var appID: String?
     var appIDs: [String]?
@@ -283,20 +256,6 @@ struct SiteAssociation : Codable {
 }
 
 
-struct JITStreamerEBLaunchAppResponse : Codable {
-    let ok: Bool
-    let launching: Bool
-    let position: Int?
-    let error: String?
-}
-
-struct JITStreamerEBStatusResponse : Codable {
-    let ok: Bool
-    let done: Bool
-    let position: Int?
-    let error: String?
-}
-
 struct JITStreamerEBMountResponse : Codable {
     let ok: Bool
     let mounting: Bool
@@ -310,7 +269,6 @@ extension NSNotification {
 }
 
 public enum LCTabIdentifier: Hashable {
-    case sources
     case apps
     case tweaks
     case settings

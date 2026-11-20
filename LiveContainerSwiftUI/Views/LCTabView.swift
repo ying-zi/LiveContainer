@@ -119,11 +119,6 @@ struct LCTabView: View {
                 sharedModel.selectedTab = .apps
                 break
             }
-            if url.scheme?.lowercased() == "sidestore" {
-                sharedModel.selectedTab = .apps
-                break
-            }
-            
             guard let host = url.host?.lowercased() else {
                 return
             }
@@ -133,9 +128,6 @@ struct LCTabView: View {
                 sharedModel.selectedTab = .apps
             case "certificate":
                 sharedModel.showSettings = true
-            case "source":
-                // Sources tab 已移除，统一跳到 Apps
-                sharedModel.selectedTab = .apps
             default:
                 return
             }
