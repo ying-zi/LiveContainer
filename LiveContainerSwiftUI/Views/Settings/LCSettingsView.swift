@@ -118,8 +118,8 @@ struct LCSettingsView: View {
             certificateModifiers
         }
         .toolbar {
-            if dismissable {
-                ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .topBarLeading) {
+                if dismissable {
                     Button("lc.common.close".loc) {
                         dismiss()
                     }
