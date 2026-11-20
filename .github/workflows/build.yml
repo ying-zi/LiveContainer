@@ -62,16 +62,22 @@ jobs:
       - name: Set file_to_build
         id: file_to_build
         run: |
-          if [ -d "LiveContainer.xcworkspace" ]; then
-            filetype_parameter="workspace"
-            file_to_build="LiveContainer.xcworkspace"
-          elif [ -d "LiveContainer.xcodeproj" ]; then
-            filetype_parameter="project"
-            file_to_build="LiveContainer.xcodeproj"
-          else
+          echo "=== Current dir: $GITHUB_WORKSPACE ==="
+          cd $GITHUB_WORKSPACE
+          ls -la *.xcworkspace 2>/dev/null || echo "No xcworkspace"
+          ls -la *.xcodeproj 2>/dev/null || echo "No xcodeproj"
+          echo "=== All files ==="
+          ls -la
+          file_to_build=$(find . -maxdepth 1 -name "*.xcworkspace" -o -name "*.xcodeproj" | head -1)
+          if [ -z "$file_to_build" ]; then
             echo "ERROR: No workspace or project found!"
-            ls -la
             exit 1
+          fi
+          file_to_build=$(basename "$file_to_build")
+          if echo "$file_to_build" | grep -q "xcworkspace"; then
+            filetype_parameter="workspace"
+          else
+            filetype_parameter="project"
           fi
           echo "Found: $filetype_parameter $file_to_build"
           echo "filetype_parameter=$filetype_parameter" >> $GITHUB_OUTPUT
