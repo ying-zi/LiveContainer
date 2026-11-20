@@ -109,15 +109,15 @@ jobs:
         run: |
           sh .github/build_github.sh
 
-      - name: Upload IPA to Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload IPA to Transfer.sh
         run: |
-          TAG="auto-build-${GITHUB_RUN_ID}"
-          echo "Creating release tag: $TAG"
-          gh release create "$TAG" LiveContainer.ipa LiveContainer+SideStore.ipa \
-            --title "LiveContainer Build #${GITHUB_RUN_NUMBER}" \
-            --notes "Auto-built by GitHub Actions (commit ${GITHUB_SHA:0:7})" \
-            || echo "Release create failed, will try upload"
-          gh release upload "$TAG" LiveContainer.ipa LiveContainer+SideStore.ipa --clobber 2>/dev/null || true
-          echo "Done! Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG"
+          echo "Uploading LiveContainer.ipa..."
+          URL1=$(curl -s --upload-file LiveContainer.ipa "https://transfer.sh/LiveContainer.ipa")
+          echo "LiveContainer.ipa: $URL1"
+          echo "Uploading LiveContainer+SideStore.ipa..."
+          URL2=$(curl -s --upload-file "LiveContainer+SideStore.ipa" "https://transfer.sh/LiveContainer+SideStore.ipa")
+          echo "LiveContainer+SideStore.ipa: $URL2"
+          echo "=== DOWNLOAD LINKS ==="
+          echo "$URL1" > $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$URL2" >> $GITHUB_STEP_SUMMARY
