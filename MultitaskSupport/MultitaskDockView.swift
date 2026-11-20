@@ -163,16 +163,10 @@ class AppInfoProvider {
         static let maxHeightRatioOfAvailableArea: CGFloat = 0.85
         
         // MARK: - Animation & Interaction
-        static var dockHiddenOffset: CGFloat {
-            get {
-                let ans = LCUtils.appGroupUserDefault.double(forKey: "LCDockWidth")
-                if ans != 0 {
-                    return ans * 2 / 3
-                } else {
-                    return 50
-                }
-            }
-        }
+        // Width of the visible grip left on screen when the dock is hidden at an edge
+        static let hiddenHandleWidth: CGFloat = 14.0
+        // Opacity of the dock body while hidden; the grip itself stays fully visible
+        static let hiddenDockOpacity: Double = 0.45
         static var hideGestureThreshold: CGFloat {
             get {
                 let ans = LCUtils.appGroupUserDefault.double(forKey: "LCDockWidth")
@@ -183,7 +177,7 @@ class AppInfoProvider {
                 }
             }
         }
-        static let edgeSwipeThreshold: CGFloat = 30.0
+        static let edgeSwipeThreshold: CGFloat = 12.0
         
         static let standardAnimationDuration: TimeInterval = 0.3
         static let longAnimationDuration: TimeInterval = 0.4
@@ -271,6 +265,11 @@ class AppInfoProvider {
 
     public var keyWindow: UIWindow? {
         (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.windows.first
+    }
+    
+    public var isOnRightSide: Bool {
+        guard let frame = hostingController?.view.frame, let window = keyWindow else { return true }
+        return frame.midX > window.bounds.width / 2
     }
 
     public var safeAreaInsets: UIEdgeInsets {
@@ -380,18 +379,16 @@ class AppInfoProvider {
             if self.hostingController?.view.window?.windowScene?.interfaceOrientation == UIInterfaceOrientation.landscapeLeft {
                 ans -= safeInsets.right
             }
-            
-            if isDockHidden {
-                ans += Constants.dockHiddenOffset
-            }
         } else {
             ans = 0
             if self.hostingController?.view.window?.windowScene?.interfaceOrientation == UIInterfaceOrientation.landscapeRight {
                 ans += safeInsets.left
             }
-            if isDockHidden {
-                ans -= Constants.dockHiddenOffset
-            }
+        }
+        
+        // Keep a fixed-width grip visible on screen so the dock can always be found
+        if isDockHidden {
+            ans = isOnRightSide ? screenWidth - Constants.hiddenHandleWidth : Constants.hiddenHandleWidth - dockWidth
         }
         
         return ans;
@@ -816,7 +813,6 @@ public struct MultitaskDockSwiftView: View {
     @EnvironmentObject var dockManager: MultitaskDockManager
     @State private var dragOffset = CGSize.zero
     @State private var isMoving: Bool = false
-    @AppStorage("LCHideCollapsedDock", store: LCUtils.appGroupUserDefault) var hideCollapsedDock: Bool = false
     
     // Calculate dynamic padding based on user settings
     private var dynamicPadding: CGFloat {
@@ -867,13 +863,15 @@ public struct MultitaskDockSwiftView: View {
                 }
             }
             .scaleEffect(dockManager.isVisible ? 1.0 : 0.8)
-            .opacity(dockManager.isDockHidden ? (hideCollapsedDock && dockManager.isCollapsed ? 0.01 : 0.4) : 1.0)
+            .opacity(dockManager.isDockHidden ? MultitaskDockManager.Constants.hiddenDockOpacity : 1.0)
             .offset(dragOffset)
             .position(x: g.size.width / 2, y: g.size.height / 2)
         }
-
-
-
+        .overlay(alignment: dockManager.isOnRightSide ? .leading : .trailing) {
+            if dockManager.isDockHidden {
+                HiddenDockHandleView(isOnRightSide: dockManager.isOnRightSide)
+            }
+        }
         .ignoresSafeArea()
         .gesture(
             DragGesture(minimumDistance: 5)
@@ -972,6 +970,32 @@ public struct MultitaskDockSwiftView: View {
     }
     
     public init() {}
+}
+
+// MARK: - Hidden Dock Handle
+@available(iOS 16.0, *)
+struct HiddenDockHandleView: View {
+    @EnvironmentObject var dockManager: MultitaskDockManager
+    let isOnRightSide: Bool
+    
+    var body: some View {
+        ZStack {
+            Capsule()
+                .fill(Color.black.opacity(0.55))
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                )
+            Image(systemName: isOnRightSide ? "chevron.compact.left" : "chevron.compact.right")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(.white)
+        }
+        .frame(width: 13, height: 58)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            dockManager.showDockFromHidden()
+        }
+    }
 }
 
 // MARK: - Collapsed Dock View
