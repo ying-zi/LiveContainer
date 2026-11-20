@@ -57,8 +57,6 @@ struct LCSettingsView: View {
     @AppStorage("LCDeviceUDID", store: LCUtils.appGroupUserDefault) var deviceUDID: String = ""
     @AppStorage("LCJITEnablerType", store: LCUtils.appGroupUserDefault) var JITEnabler: JITEnablerType = .SideJITServer
     
-    @State var store : Store = .Unknown
-    
     @AppStorage("LCLoadTweaksToSelf") var injectToLCItelf = false
     @AppStorage("LCIgnoreJITOnLaunch") var ignoreJITOnLaunch = false
     @AppStorage("LCSelected32BitEmulator", store: LCUtils.appGroupUserDefault) var selected32BitEmulator : String = ""
@@ -77,7 +75,6 @@ struct LCSettingsView: View {
     init(dismissable: Bool = false) {
         self.dismissable = dismissable
         _certificateDataFound = State(initialValue: LCSharedUtils.certificatePassword() != nil)
-        _store = State(initialValue: LCUtils.store())
     }
     
     private var versionFooter: some View {
@@ -241,17 +238,6 @@ struct LCSettingsView: View {
                         Task{ await removeCertificate() }
                     } label: {
                         Text("lc.settings.removeCertificate".loc)
-                    }
-                }
-                if store == .AltStore || store == .SideStore {
-                    Button {
-                        Task{ await importCertificateFromSideStore() }
-                    } label: {
-                        if certificateDataFound {
-                            Text("lc.settings.refreshCertificate".loc)
-                        } else {
-                            Text("lc.settings.importCertificateFromSigner".loc)
-                        }
                     }
                 }
                 NavigationLink {
@@ -595,9 +581,13 @@ struct LCSettingsView: View {
         guard let doImport = await certificateImportAlert.open(), doImport else {
             return
         }
+        // wait for the alert dismissal animation, otherwise the document picker can't be presented
+        try? await Task.sleep(nanoseconds: 500_000_000)
         guard let certificateURL = await certificateImportFileAlert.open() else {
             return
         }
+        // wait for the document picker dismissal animation before showing the next alert
+        try? await Task.sleep(nanoseconds: 500_000_000)
         guard let certificatePassword = await certificateImportPasswordAlert.open() else {
             return
         }
@@ -624,21 +614,6 @@ struct LCSettingsView: View {
         UserDefaults.standard.set(LCSharedUtils.appGroupID(), forKey: "LCAppGroupID")
     }
     
-    func importCertificateFromSideStore() async {
-        let storeScheme : String
-        if store == .AltStore {
-            storeScheme = "altstore-classic"
-        } else {
-            storeScheme = "sidestore"
-        }
-        
-        guard let url = URL(string: "\(storeScheme.lowercased())://certificate?callback_template=livecontainer%3A%2F%2Fcertificate%3Fcert%3D%24%28BASE64_CERT%29%26password%3D%24%28PASSWORD%29") else {
-            errorInfo = "Failed to initialize certificate import URL."
-            errorShow = true
-            return
-        }
-        await UIApplication.shared.open(url)
-    }
     func onSideStoreCertificateCallback(certificateData: Data, password: String) {
         LCUtils.appGroupUserDefault.set(certificateData, forKey: "LCCertificateData")
         LCUtils.appGroupUserDefault.set(password, forKey: "LCCertificatePassword")

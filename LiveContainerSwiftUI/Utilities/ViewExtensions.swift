@@ -74,6 +74,23 @@ extension View {
     }
 }
 
+public extension UIViewController {
+    // The topmost presented view controller, so presenting never fails because
+    // the root view controller already has a presented (e.g. full screen cover) controller.
+    var topMostPresentedViewController: UIViewController {
+        if let presented = presentedViewController, presented !== self {
+            return presented.topMostPresentedViewController
+        }
+        if let nav = self as? UINavigationController, let visible = nav.visibleViewController, visible !== self {
+            return visible.topMostPresentedViewController
+        }
+        if let tab = self as? UITabBarController, let selected = tab.selectedViewController, selected !== self {
+            return selected.topMostPresentedViewController
+        }
+        return self
+    }
+}
+
 public struct DocModifier: ViewModifier {
     @EnvironmentObject var sceneDelegate: SceneDelegate
     @State private var docController: UIDocumentPickerViewController?
@@ -102,7 +119,11 @@ public struct DocModifier: ViewModifier {
                 controller.allowsMultipleSelection = multiple
                 controller.delegate = delegate
                 self.docController = controller
-                sceneDelegate.window?.rootViewController?.present(controller, animated: true)
+                if let presentingVC = sceneDelegate.window?.rootViewController?.topMostPresentedViewController {
+                    DispatchQueue.main.async {
+                        presentingVC.present(controller, animated: true)
+                    }
+                }
             } else if !isPresented, let docController = docController {
                 docController.dismiss(animated: true)
                 self.docController = nil
@@ -152,7 +173,11 @@ public struct TextFieldAlertModifier: ViewModifier {
             if isPresented, alertController == nil {
                 let alertController = makeAlertController()
                 self.alertController = alertController
-                sceneDelegate.window?.rootViewController?.present(alertController, animated: true)
+                if let presentingVC = sceneDelegate.window?.rootViewController?.topMostPresentedViewController {
+                    DispatchQueue.main.async {
+                        presentingVC.present(alertController, animated: true)
+                    }
+                }
             } else if !isPresented, let alertController = alertController {
                 alertController.dismiss(animated: true)
                 self.alertController = nil

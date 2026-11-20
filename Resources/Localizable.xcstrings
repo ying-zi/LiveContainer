@@ -26221,52 +26221,6 @@
         }
       }
     },
-    "lc.settings.refreshCertificate" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refresh Certificate"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "刷新证书"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新整理證書"
-          }
-        }
-      }
-    },
-    "lc.settings.importCertificateFromSigner" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Import Certificate from Signing Tool"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "从签名工具导入证书"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "從簽名工具匯入證書"
-          }
-        }
-      }
-    },
     "lc.settings.removeCertificate" : {
       "extractionState" : "manual",
       "localizations" : {
