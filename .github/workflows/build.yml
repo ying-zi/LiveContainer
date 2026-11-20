@@ -25,12 +25,16 @@ jobs:
     steps:
       - name: Checkout code
         run: |
-          # GitHub already checked out the repo, update submodules
           echo "Workspace: $GITHUB_WORKSPACE"
           cd $GITHUB_WORKSPACE
+          # Clone the repo with the specific commit
+          git clone "https://github.com/${{ github.repository }}.git" .
+          git fetch --depth 1 origin ${{ github.sha }}
+          git checkout ${{ github.sha }}
+          echo "Files after checkout:"
           ls -la
-          git --version
-          git submodule update --init --recursive || echo "No submodules or update failed"
+          echo "Submodules:"
+          git submodule update --init --recursive 2>&1 || echo "No submodules or update failed"
 
       - name: Check Xcode version
         run: |
