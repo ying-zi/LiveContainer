@@ -167,6 +167,10 @@ class AppInfoProvider {
         static let hiddenVisibleRatio: CGFloat = 0.5
         // Opacity of the dock while hidden at an edge, so it always stays visible
         static let hiddenDockOpacity: Double = 0.5
+        // Scale applied while hidden so the collapse arrow stays fully on screen
+        static let hiddenDockScale: CGFloat = 0.6
+        // Seconds of inactivity after snapping to an edge before the dock collapses
+        static let autoCollapseDelay: TimeInterval = 3.0
         static var hideGestureThreshold: CGFloat {
             get {
                 let ans = LCUtils.appGroupUserDefault.double(forKey: "LCDockWidth")
@@ -198,6 +202,8 @@ class AppInfoProvider {
         let storedValue = LCUtils.appGroupUserDefault.double(forKey: "LCDockWidth")
         return storedValue > 0 ? CGFloat(storedValue) : Constants.defaultDockWidth
     }
+    
+    private var autoCollapseTimer: Timer?
     
     // Calculate adaptive dock width (auto-adjust when exceeding safe area)
     public var dockWidth: CGFloat {
@@ -265,6 +271,17 @@ class AppInfoProvider {
 
     public var keyWindow: UIWindow? {
         (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.windows.first
+    }
+    
+    public var isOnRightSide: Bool {
+        guard let frame = hostingController?.view.frame, let window = keyWindow else { return true }
+        return frame.midX > window.bounds.width / 2
+    }
+    
+    private var isFlushToEdge: Bool {
+        guard let frame = hostingController?.view.frame, let window = keyWindow else { return false }
+        let tolerance: CGFloat = 2
+        return abs(frame.minX) <= tolerance || abs(frame.maxX - window.bounds.width) <= tolerance
     }
 
     public var safeAreaInsets: UIEdgeInsets {
@@ -481,11 +498,17 @@ class AppInfoProvider {
                 hostingController.view.alpha = 1
                 hostingController.view.transform = .identity
             }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                self.scheduleAutoCollapse()
+            }
         }
     }
     
     @objc public func hideDock() {
         guard isVisible, let hostingController = hostingController else { return }
+        
+        self.cancelAutoCollapse()
         
         DispatchQueue.main.async {
             UIView.animate(
@@ -534,23 +557,19 @@ class AppInfoProvider {
     }
 
     func handleSwipeToHideOrShowGesture(for originalFrame: CGRect, translation: CGSize) -> Bool {
+        // Dragging never hides the dock anymore; it is only used to bring a hidden dock back
+        guard self.isDockHidden else { return false }
+        
         let screenWidth = keyWindow!.bounds.width
         let isOnRightSide = originalFrame.origin.x > screenWidth / 2
-        let isSwipingAway = (isOnRightSide && translation.width > 0) || (!isOnRightSide && translation.width < 0)
+        let isSwipingInward = (isOnRightSide && translation.width < 0) || (!isOnRightSide && translation.width > 0)
         
-        if isSwipingAway {
-            guard !self.isDockHidden else { return false }
-            self.hideDockToSide()
-            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-            impactFeedback.impactOccurred()
-            return true
-        } else {
-            guard self.isDockHidden else { return false }
-            self.showDockFromHidden()
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.impactOccurred()
-            return true
-        }
+        guard isSwipingInward else { return false }
+        
+        self.showDockFromHidden()
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        return true
     }
     
     // Check if gesture is for cross-screen movement (left to right or vice versa)
@@ -747,11 +766,37 @@ class AppInfoProvider {
         }
     }
     
+    // MARK: - Auto collapse after snapping to an edge
+    @objc public func cancelAutoCollapse() {
+        autoCollapseTimer?.invalidate()
+        autoCollapseTimer = nil
+    }
+    
+    @objc public func scheduleAutoCollapse() {
+        DispatchQueue.main.async {
+            self.cancelAutoCollapse()
+            guard self.isVisible, !self.isDockHidden, !self.isCollapsed, self.isFlushToEdge else { return }
+            self.autoCollapseTimer = Timer.scheduledTimer(
+                withTimeInterval: Constants.autoCollapseDelay,
+                repeats: false
+            ) { [weak self] _ in
+                guard let self, self.isVisible, !self.isDockHidden, self.isFlushToEdge else { return }
+                if !self.isCollapsed {
+                    self.toggleDockCollapse()
+                }
+                self.hideDockToSide()
+            }
+        }
+    }
+    
     @objc public func showDockFromHidden() {
         DispatchQueue.main.async {
             self.isDockHidden = false
             self.updateDockFrame()
             self.setupEdgeGestureRecognizers()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                self.scheduleAutoCollapse()
+            }
         }
     }
     
@@ -823,7 +868,11 @@ public struct MultitaskDockSwiftView: View {
                 if dockManager.isCollapsed {
                     CollapsedDockView(isHidden: dockManager.isDockHidden)
                         .onTapGesture {
-                            dockManager.toggleDockCollapse()
+                            if dockManager.isDockHidden {
+                                dockManager.showDockFromHidden()
+                            } else {
+                                dockManager.toggleDockCollapse()
+                            }
                         }
                 } else {
                     VStack(spacing: 8) {
@@ -858,7 +907,14 @@ public struct MultitaskDockSwiftView: View {
                     )
                 }
             }
-            .scaleEffect(dockManager.isVisible ? 1.0 : 0.8)
+            .scaleEffect(
+                dockManager.isDockHidden
+                    ? MultitaskDockManager.Constants.hiddenDockScale
+                    : (dockManager.isVisible ? 1.0 : MultitaskDockManager.Constants.initialScale),
+                anchor: dockManager.isDockHidden
+                    ? (dockManager.isOnRightSide ? .leading : .trailing)
+                    : .center
+            )
             .opacity(dockManager.isDockHidden ? MultitaskDockManager.Constants.hiddenDockOpacity : 1.0)
             .offset(dragOffset)
             .position(x: g.size.width / 2, y: g.size.height / 2)
@@ -867,11 +923,20 @@ public struct MultitaskDockSwiftView: View {
         .gesture(
             DragGesture(minimumDistance: 5)
             .onChanged { value in
+                if !self.isMoving {
+                    dockManager.cancelAutoCollapse()
+                }
                 self.isMoving = true
                 self.dragOffset = value.translation
             }
             .onEnded { value in
                 self.isMoving = true
+                
+                // Re-arm the auto collapse timer once the dock settles
+                dockManager.cancelAutoCollapse()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    dockManager.scheduleAutoCollapse()
+                }
 
                 let hcFrame = dockManager.hostingController?.view.frame ?? .zero
                 
