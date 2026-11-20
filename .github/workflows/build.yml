@@ -109,24 +109,21 @@ jobs:
         run: |
           sh .github/build_github.sh
 
-      - name: Upload IPA to Repository
+      - name: Upload IPA to GitHub
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "=== git push IPA branch ==="
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Create orphan branch with only IPA files
-          git checkout --orphan "build-${GITHUB_RUN_ID}"
-          git rm -rf . > /dev/null 2>&1 || true
-          ls -lh *.ipa
-          if ls *.ipa 1>/dev/null 2>&1; then
-            git add *.ipa
-            git commit -m "LiveContainer IPA build #${GITHUB_RUN_NUMBER}"
-            # Push with token auth
-            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-            git push -f origin "build-${GITHUB_RUN_ID}" 2>&1 && echo "SUCCESS!" || echo "Git push failed"
-            echo "Download: https://github.com/${GITHUB_REPOSITORY}/tree/build-${GITHUB_RUN_ID}"
-          else
-            echo "No IPA files found!"
-          fi
+          echo "=== 尝试上传到 Gist ==="
+          # Encode IPA to base64 and upload to gist
+          B64=$(base64 -i LiveContainer.ipa | tr -d '\n')
+          echo "Base64 size: ${#B64}"
+          # Try gist API
+          RESP=$(curl -s -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"description\":\"LiveContainer IPA build #${GITHUB_RUN_NUMBER}\",\"public\":false,\"files\":{\"LiveContainer.ipa.b64\":{\"content\":\"${B64}\"}}}" \
+            "https://api.github.com/gists" 2>&1)
+          echo "$RESP" | head -5
+          echo ""
+          echo "=== 也试试直接 upload to user content ==="
+          echo "Run URL: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
