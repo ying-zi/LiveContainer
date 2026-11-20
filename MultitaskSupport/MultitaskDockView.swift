@@ -165,8 +165,6 @@ class AppInfoProvider {
         // MARK: - Animation & Interaction
         // Visual size of the mini button shown when the dock is hidden at an edge
         static let hiddenDockSize: CGFloat = 30.0
-        // Larger hit area around the mini button so it stays easy to tap
-        static let hiddenDockHitSize: CGFloat = 44.0
         // Small gap kept between the mini button and the screen edge
         static let hiddenEdgeMargin: CGFloat = 2.0
         // Opacity of the mini button while hidden, so it always stays visible
@@ -361,7 +359,7 @@ class AppInfoProvider {
 
         let screenBounds = keyWindow!.bounds
         let currentDockWidth = self.dockWidth
-        let targetWidth = self.isDockHidden ? Constants.hiddenDockHitSize : currentDockWidth
+        let targetWidth = self.isDockHidden ? self.adaptiveIconSize : currentDockWidth
         
         let dockHeight = calculateTargetDockHeight(forWidth: currentDockWidth)
 
@@ -385,7 +383,7 @@ class AppInfoProvider {
 
     private func calculateTargetDockHeight(forWidth width: CGFloat) -> CGFloat {
         if isDockHidden {
-            return Constants.hiddenDockHitSize
+            return self.adaptiveIconSize
         }
         if isCollapsed {
             let collapsedHeight = collapsedDockHeight(for: width)
@@ -412,9 +410,9 @@ class AppInfoProvider {
             }
         }
         
-        // Hidden: mini button with a larger invisible hit area, kept near the edge
+        // Hidden: keep the native square's hit area, only shrink its visuals
         if isDockHidden {
-            let extra = (Constants.hiddenDockHitSize - Constants.hiddenDockSize) / 2
+            let extra = max(0, (self.adaptiveIconSize - Constants.hiddenDockSize) / 2)
             let margin = Constants.hiddenEdgeMargin
             if isOnRightSide {
                 ans = screenWidth - Constants.hiddenDockSize - extra - margin
@@ -917,10 +915,6 @@ public struct MultitaskDockSwiftView: View {
                 if dockManager.isDockHidden {
                     CollapsedDockView(isHidden: false)
                         .scaleEffect(hiddenScale)
-                        .frame(
-                            width: MultitaskDockManager.Constants.hiddenDockHitSize,
-                            height: MultitaskDockManager.Constants.hiddenDockHitSize
-                        )
                         .contentShape(Rectangle())
                         .onTapGesture {
                             dockManager.expandDockFromHidden()
@@ -999,7 +993,7 @@ public struct MultitaskDockSwiftView: View {
                 
                 if dockManager.isPositionChangeGesture(for: hcFrame, translation: value.translation) {
                     let screenBounds = dockManager.keyWindow!.bounds
-                    let targetWidth = dockManager.isDockHidden ? MultitaskDockManager.Constants.hiddenDockHitSize : dockManager.dockWidth
+                    let targetWidth = dockManager.isDockHidden ? dockManager.adaptiveIconSize : dockManager.dockWidth
                     let targetX = dockManager.calculateTargetX(isDockHidden: dockManager.isDockHidden, isOnRightSide: currentPhysicalFrame.midX > screenBounds.width / 2, dockWidth: targetWidth, screenWidth: screenBounds.width)
                     
                     let safeAreaInsets = dockManager.safeAreaInsets
