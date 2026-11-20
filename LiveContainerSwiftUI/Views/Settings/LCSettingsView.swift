@@ -116,269 +116,11 @@ struct LCSettingsView: View {
     var body: some View {
         NavigationView {
             Form {
-                if sharedModel.multiLCStatus != 2 {
-                    Section{
-                        if !certificateDataFound {
-                            Button {
-                                Task{ await importCertificate() }
-                            } label: {
-                                Text("lc.settings.importCertificate".loc)
-                            }
-                        } else {
-                            Button {
-                                Task{ await removeCertificate() }
-                            } label: {
-                                Text("lc.settings.removeCertificate".loc)
-                            }
-                        }
-                        if store == .AltStore || store == .SideStore {
-                            Button {
-                                Task{ await importCertificateFromSideStore() }
-                            } label: {
-                                if certificateDataFound {
-                                    Text("lc.settings.refreshCertificateFromStore %@".localizeWithFormat(storeName))
-                                } else {
-                                    Text("lc.settings.importCertificateFromStore %@".localizeWithFormat(storeName))
-                                }
-                            }
-                        }
-                        NavigationLink {
-                            LCJITLessDiagnoseView()
-                        } label: {
-                            Text("lc.settings.jitlessDiagnose".loc)
-                        }
-
-                    } header: {
-                        Text("lc.settings.jitLess".loc)
-                    } footer: {
-                        Text("lc.settings.jitLessDesc".loc)
-                    }
-                }
-                Section{
-                    NavigationLink {
-                        LCMultiLCManagementView()
-                    } label: {
-                        if sharedModel.multiLCStatus == 2 {
-                            Text("lc.settings.multiLCIsSecond".loc)
-                        } else {
-                            Text("lc.settings.multiLC".loc)
-                        }
-                    }
-                    .disabled(sharedModel.multiLCStatus == 2)
-                    
-                    if(sharedModel.multiLCStatus == 2) {
-                        NavigationLink {
-                            LCJITLessDiagnoseView()
-                        } label: {
-                            Text("lc.settings.jitlessDiagnose".loc)
-                        }
-                    }
-                } footer: {
-                    Text("lc.settings.multiLCDesc".loc)
-                }
-                
-                if #available(iOS 16.1, *) {
-                    Section {
-                        NavigationLink {
-                            LCMultitaskSettingView()
-                        } label: {
-                            Text("lc.appBanner.multitask".loc)
-                        }
-                    } footer: {
-                        Text("lc.settings.multitaskDesc".loc)
-                    }
-                }
-                
-                Section {
-                    if JITEnabler == .SideJITServer || JITEnabler == .JITStreamerEBLegacy {
-                        HStack {
-                            Text("lc.settings.JitAddress".loc)
-                            Spacer()
-                            TextField(JITEnabler == .SideJITServer ? "http://x.x.x.x:8080" : "http://[fd00::]:9172", text: $sideJITServerAddress)
-                                .multilineTextAlignment(.trailing)
-                        }
-                    }
-                    if JITEnabler == .SideJITServer {
-                        HStack {
-                            Text("lc.settings.JitUDID".loc)
-                            Spacer()
-                            TextField("", text: $deviceUDID)
-                                .multilineTextAlignment(.trailing)
-                        }
-                    }
-                    Picker(selection: $JITEnabler) {
-                        ForEach(JITEnablerType.allCases) { enablerType in
-                            Text(enablerType.displayName).tag(enablerType)
-                        }
-                    } label: {
-                        Text("lc.settings.jitEnabler".loc)
-                    }
-
-                } header: {
-                    Text("JIT")
-                } footer: {
-                    Text("lc.settings.JitDesc".loc)
-                }
-                
-                if !sharedModel.arm32EmuApps.isEmpty {
-                    Section {
-                        Picker(selection: $selected32BitEmulator) {
-                            ForEach(sharedModel.arm32EmuApps, id: \.self) { app in
-                                let appName: String = app.appInfo.displayName()
-                                let appPath: String = app.appInfo.relativeBundlePath!
-                                Text("lc.common.none".loc).tag("")
-                                Text(appName).tag(appPath)
-                            }
-                        } label: {
-                            Text("lc.settings.selected32BitEmulator".loc)
-                        }
-                    }
-                }
-                
-                Section{
-                    Toggle(isOn: $dynamicColors) {
-                        Text("lc.settings.dynamicColors".loc)
-                    }
-                    if #available(iOS 18.0, *) {
-                        Toggle(isOn: $darkModeIcon) {
-                            Text("lc.settings.darkModeIcon".loc)
-                        }
-                    }
-                    
-                } header: {
-                    Text("lc.settings.interface".loc)
-                } footer: {
-                    Text("lc.settings.dynamicColors.desc".loc)
-                }
-                Section{
-                    Toggle(isOn: $frameShortIcon) {
-                        Text("lc.settings.FrameIcon".loc)
-                    }
-                } header: {
-                    Text("lc.common.miscellaneous".loc)
-                } footer: {
-                    Text("lc.settings.FrameIconDesc".loc)
-                }
-                
-                Section {
-                    Toggle(isOn: $silentSwitchApp) {
-                        Text("lc.settings.silentSwitchApp".loc)
-                    }
-                } footer: {
-                    Text("lc.settings.silentSwitchAppDesc".loc)
-                }
-                
-                Section {
-                    Toggle(isOn: $silentOpenWebPage) {
-                        Text("lc.settings.silentOpenWebPage".loc)
-                    }
-                } footer: {
-                    Text("lc.settings.silentOpenWebPageDesc".loc)
-                }
-                
-                if sharedModel.isHiddenAppUnlocked {
-                    Section {
-                        Toggle(isOn: $strictHiding) {
-                            Text("lc.settings.strictHiding".loc)
-                        }
-                    } footer: {
-                        Text("lc.settings.strictHidingDesc".loc)
-                    }
-                }
-                
-                Section {
-                    Toggle(isOn: $dontSignApp) {
-                        Text("lc.settings.dontSign".loc)
-                    }
-                } footer: {
-                    Text("lc.settings.dontSignDesc".loc)
-                }
-
-                Section {
-                    Button {
-                        clearNotifications()
-                    } label: {
-                        Text("lc.settings.clearNotifications".loc)
-                    }
-                }
-
-                Section {
-                    if sharedModel.multiLCStatus != 2 {
-                        NavigationLink {
-                            LCStorageManagementView()
-                        } label: {
-                            Text("lc.settings.storageManagement".loc)
-                        }
-                    }
-                    NavigationLink {
-                        LCDataManagementView()
-                    } label: {
-                        Text("lc.settings.dataManagement".loc)
-                    }
-                }
-                
-                versionFooter
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .background(Color(UIColor.systemGroupedBackground))
-                    .listRowInsets(EdgeInsets())
-                
-                if sharedModel.developerMode {
-                    Section {
-                        Toggle(isOn: $injectToLCItelf) {
-                            Text("lc.settings.injectLCItself".loc)
-                        }
-                        Toggle(isOn: $ignoreJITOnLaunch) {
-                            Text("Ignore JIT on Launching App")
-                        }
-                        Toggle(isOn: $keepSelectedWhenQuit) {
-                            Text("Keep Selected App when Quit")
-                        }
-                        Toggle(isOn: $waitForDebugger) {
-                            Text("Wait For Debugger")
-                        }
-                        Toggle(isOn: $sharePrivateDataWithLiveProcess) {
-                            Text("Allow Private Data access from LiveProcess")
-                        }
-                        Toggle(isOn: $disableLiveProcessWatchdog) {
-                            Text("Disable LiveProcess watchdog termination")
-                        }
-                        Button {
-                            export()
-                        } label: {
-                            Text("Export Cert")
-                        }
-                        Button {
-                            exportDyld()
-                        } label: {
-                            Text("Export Dyld")
-                        }
-                        Button {
-                            Task { await nukeSideStore() }
-                        } label: {
-                            Text("Nuke SideStore")
-                        }
-                        Button {
-                            exportMainBundle()
-                        } label: {
-                            Text("Export Main Bundle")
-                        }
-                        Button {
-                            resetSymbolOffsets()
-                        } label: {
-                            Text("Reset Symbol Offsets")
-                        }
-                        Button {
-                            presentFLEXOverlay()
-                        } label: {
-                            Text("Show FLEX Overlay")
-                        }
-                        .disabled(NSClassFromString("FLEXManager") == nil)
-                    } header: {
-                        Text("Developer Settings")
-                    } footer: {
-                        Text("lc.settings.injectLCItselfDesc".loc)
-                    }
-                }
+                settingsSections1
+                settingsSections2
+                settingsSections3
+                settingsSections4
+                settingsSections5
             }
             .navigationBarTitle("lc.tabView.settings".loc)
             .alert("lc.common.error".loc, isPresented: $errorShow){
@@ -461,6 +203,289 @@ struct LCSettingsView: View {
         }
     }
     
+    @ViewBuilder
+    private var settingsSections1: some View {
+        if sharedModel.multiLCStatus != 2 {
+            Section{
+                if !certificateDataFound {
+                    Button {
+                        Task{ await importCertificate() }
+                    } label: {
+                        Text("lc.settings.importCertificate".loc)
+                    }
+                } else {
+                    Button {
+                        Task{ await removeCertificate() }
+                    } label: {
+                        Text("lc.settings.removeCertificate".loc)
+                    }
+                }
+                if store == .AltStore || store == .SideStore {
+                    Button {
+                        Task{ await importCertificateFromSideStore() }
+                    } label: {
+                        if certificateDataFound {
+                            Text("lc.settings.refreshCertificateFromStore %@".localizeWithFormat(storeName))
+                        } else {
+                            Text("lc.settings.importCertificateFromStore %@".localizeWithFormat(storeName))
+                        }
+                    }
+                }
+                NavigationLink {
+                    LCJITLessDiagnoseView()
+                } label: {
+                    Text("lc.settings.jitlessDiagnose".loc)
+                }
+
+            } header: {
+                Text("lc.settings.jitLess".loc)
+            } footer: {
+                Text("lc.settings.jitLessDesc".loc)
+            }
+        }
+        Section{
+            NavigationLink {
+                LCMultiLCManagementView()
+            } label: {
+                if sharedModel.multiLCStatus == 2 {
+                    Text("lc.settings.multiLCIsSecond".loc)
+                } else {
+                    Text("lc.settings.multiLC".loc)
+                }
+            }
+            .disabled(sharedModel.multiLCStatus == 2)
+            
+            if(sharedModel.multiLCStatus == 2) {
+                NavigationLink {
+                    LCJITLessDiagnoseView()
+                } label: {
+                    Text("lc.settings.jitlessDiagnose".loc)
+                }
+            }
+        } footer: {
+            Text("lc.settings.multiLCDesc".loc)
+        }
+        
+        if #available(iOS 16.1, *) {
+            Section {
+                NavigationLink {
+                    LCMultitaskSettingView()
+                } label: {
+                    Text("lc.appBanner.multitask".loc)
+                }
+            } footer: {
+                Text("lc.settings.multitaskDesc".loc)
+            }
+        }
+        
+    }
+
+    @ViewBuilder
+    private var settingsSections2: some View {
+        Section {
+            if JITEnabler == .SideJITServer || JITEnabler == .JITStreamerEBLegacy {
+                HStack {
+                    Text("lc.settings.JitAddress".loc)
+                    Spacer()
+                    TextField(JITEnabler == .SideJITServer ? "http://x.x.x.x:8080" : "http://[fd00::]:9172", text: $sideJITServerAddress)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+            if JITEnabler == .SideJITServer {
+                HStack {
+                    Text("lc.settings.JitUDID".loc)
+                    Spacer()
+                    TextField("", text: $deviceUDID)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+            Picker(selection: $JITEnabler) {
+                ForEach(JITEnablerType.allCases) { enablerType in
+                    Text(enablerType.displayName).tag(enablerType)
+                }
+            } label: {
+                Text("lc.settings.jitEnabler".loc)
+            }
+
+        } header: {
+            Text("JIT")
+        } footer: {
+            Text("lc.settings.JitDesc".loc)
+        }
+        
+        if !sharedModel.arm32EmuApps.isEmpty {
+            Section {
+                Picker(selection: $selected32BitEmulator) {
+                    ForEach(sharedModel.arm32EmuApps, id: \.self) { app in
+                        let appName: String = app.appInfo.displayName()
+                        let appPath: String = app.appInfo.relativeBundlePath!
+                        Text("lc.common.none".loc).tag("")
+                        Text(appName).tag(appPath)
+                    }
+                } label: {
+                    Text("lc.settings.selected32BitEmulator".loc)
+                }
+            }
+        }
+        
+        Section{
+            Toggle(isOn: $dynamicColors) {
+                Text("lc.settings.dynamicColors".loc)
+            }
+            if #available(iOS 18.0, *) {
+                Toggle(isOn: $darkModeIcon) {
+                    Text("lc.settings.darkModeIcon".loc)
+                }
+            }
+            
+        } header: {
+            Text("lc.settings.interface".loc)
+        } footer: {
+            Text("lc.settings.dynamicColors.desc".loc)
+        }
+    }
+
+    @ViewBuilder
+    private var settingsSections3: some View {
+        Section{
+            Toggle(isOn: $frameShortIcon) {
+                Text("lc.settings.FrameIcon".loc)
+            }
+        } header: {
+            Text("lc.common.miscellaneous".loc)
+        } footer: {
+            Text("lc.settings.FrameIconDesc".loc)
+        }
+        
+        Section {
+            Toggle(isOn: $silentSwitchApp) {
+                Text("lc.settings.silentSwitchApp".loc)
+            }
+        } footer: {
+            Text("lc.settings.silentSwitchAppDesc".loc)
+        }
+        
+        Section {
+            Toggle(isOn: $silentOpenWebPage) {
+                Text("lc.settings.silentOpenWebPage".loc)
+            }
+        } footer: {
+            Text("lc.settings.silentOpenWebPageDesc".loc)
+        }
+        
+    }
+
+    @ViewBuilder
+    private var settingsSections4: some View {
+        if sharedModel.isHiddenAppUnlocked {
+            Section {
+                Toggle(isOn: $strictHiding) {
+                    Text("lc.settings.strictHiding".loc)
+                }
+            } footer: {
+                Text("lc.settings.strictHidingDesc".loc)
+            }
+        }
+        
+        Section {
+            Toggle(isOn: $dontSignApp) {
+                Text("lc.settings.dontSign".loc)
+            }
+        } footer: {
+            Text("lc.settings.dontSignDesc".loc)
+        }
+
+        Section {
+            Button {
+                clearNotifications()
+            } label: {
+                Text("lc.settings.clearNotifications".loc)
+            }
+        }
+
+    }
+
+    @ViewBuilder
+    private var settingsSections5: some View {
+        Section {
+            if sharedModel.multiLCStatus != 2 {
+                NavigationLink {
+                    LCStorageManagementView()
+                } label: {
+                    Text("lc.settings.storageManagement".loc)
+                }
+            }
+            NavigationLink {
+                LCDataManagementView()
+            } label: {
+                Text("lc.settings.dataManagement".loc)
+            }
+        }
+        
+        versionFooter
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .background(Color(UIColor.systemGroupedBackground))
+            .listRowInsets(EdgeInsets())
+        
+        if sharedModel.developerMode {
+            Section {
+                Toggle(isOn: $injectToLCItelf) {
+                    Text("lc.settings.injectLCItself".loc)
+                }
+                Toggle(isOn: $ignoreJITOnLaunch) {
+                    Text("Ignore JIT on Launching App")
+                }
+                Toggle(isOn: $keepSelectedWhenQuit) {
+                    Text("Keep Selected App when Quit")
+                }
+                Toggle(isOn: $waitForDebugger) {
+                    Text("Wait For Debugger")
+                }
+                Toggle(isOn: $sharePrivateDataWithLiveProcess) {
+                    Text("Allow Private Data access from LiveProcess")
+                }
+                Toggle(isOn: $disableLiveProcessWatchdog) {
+                    Text("Disable LiveProcess watchdog termination")
+                }
+                Button {
+                    export()
+                } label: {
+                    Text("Export Cert")
+                }
+                Button {
+                    exportDyld()
+                } label: {
+                    Text("Export Dyld")
+                }
+                Button {
+                    Task { await nukeSideStore() }
+                } label: {
+                    Text("Nuke SideStore")
+                }
+                Button {
+                    exportMainBundle()
+                } label: {
+                    Text("Export Main Bundle")
+                }
+                Button {
+                    resetSymbolOffsets()
+                } label: {
+                    Text("Reset Symbol Offsets")
+                }
+                Button {
+                    presentFLEXOverlay()
+                } label: {
+                    Text("Show FLEX Overlay")
+                }
+                .disabled(NSClassFromString("FLEXManager") == nil)
+            } header: {
+                Text("Developer Settings")
+            } footer: {
+                Text("lc.settings.injectLCItselfDesc".loc)
+            }
+        }
+    }
+
     private var navigationTitleText: String {
         return dismissable ? "lc.tabView.settings".loc : ""
     }
