@@ -196,8 +196,10 @@ struct LCSettingsView: View {
                 Section {
                     Picker(selection: $selected32BitEmulator) {
                         ForEach(sharedModel.arm32EmuApps, id: \.self) { app in
+                            let appName: String = app.appInfo.displayName()
+                            let appPath: String = app.appInfo.relativeBundlePath!
                             Text("lc.common.none".loc).tag("")
-                            Text(app.appInfo.displayName()).tag(app.appInfo.relativeBundlePath!)
+                            Text(appName).tag(appPath)
                         }
                     } label: {
                         Text("lc.settings.selected32BitEmulator".loc)
@@ -455,7 +457,7 @@ struct LCSettingsView: View {
                 }
             }
         }
-        .navigationTitle(dismissable ? "lc.tabView.settings".loc : "")
+        .navigationTitle(navigationTitleText)
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear() {
             if !isViewAppeared {
@@ -473,6 +475,10 @@ struct LCSettingsView: View {
         }
     }
     
+    private var navigationTitleText: String {
+        return dismissable ? "lc.tabView.settings".loc : ""
+    }
+
     func openGitHub() {
         UIApplication.shared.open(URL(string: "https://github.com/LiveContainer/LiveContainer")!)
     }
