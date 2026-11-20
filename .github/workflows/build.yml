@@ -109,21 +109,40 @@ jobs:
         run: |
           sh .github/build_github.sh
 
-      - name: Upload IPA to GitHub
+      - name: Export IPA
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "=== 尝试上传到 Gist ==="
-          # Encode IPA to base64 and upload to gist
-          B64=$(base64 -i LiveContainer.ipa | tr -d '\n')
-          echo "Base64 size: ${#B64}"
-          # Try gist API
-          RESP=$(curl -s -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -d "{\"description\":\"LiveContainer IPA build #${GITHUB_RUN_NUMBER}\",\"public\":false,\"files\":{\"LiveContainer.ipa.b64\":{\"content\":\"${B64}\"}}}" \
-            "https://api.github.com/gists" 2>&1)
-          echo "$RESP" | head -5
-          echo ""
-          echo "=== 也试试直接 upload to user content ==="
-          echo "Run URL: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          ls -lh *.ipa || true
+
+          echo "=== 方式1: 直接 git push 到分支 ==="
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan "ipa-${GITHUB_RUN_ID}" || true
+          git rm -rf . >/dev/null 2>&1 || true
+          git add -f LiveContainer.ipa 2>/dev/null || true
+          git commit -m "build ${GITHUB_RUN_ID}" >/dev/null 2>&1 || true
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git push -f origin "ipa-${GITHUB_RUN_ID}" >/dev/null 2>&1; then
+            echo "PUSH_OK ipa-${GITHUB_RUN_ID}" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "PUSH_FAIL"
+          fi
+
+          echo "=== 方式2: 临时网盘 ==="
+          FAIL=1
+          try_host() {
+            name="$1"; shift
+            out=$("$@" 2>/dev/null) || return 0
+            if echo "$out" | grep -qiE '^https?://'; then
+              echo "HOST_${name}_OK $out" | tee -a $GITHUB_STEP_SUMMARY
+              FAIL=0
+            fi
+          }
+          try_host catbox curl -sS -m 300 -F "reqtype=fileupload" -F "fileToUpload=@LiveContainer.ipa" https://catbox.moe/user/api.php
+          try_host litter curl -sS -m 300 -F "reqtype=fileupload" -F "time=72h" -F "fileToUpload=@LiveContainer.ipa" https://litterbox.catbox.moe/resources/internals/api.php
+          try_host bashupload curl -sS -m 300 -T LiveContainer.ipa https://bashupload.com
+          try_host tmpfiles curl -sS -m 300 -F "file=@LiveContainer.ipa" https://tmpfiles.org/api/v1/upload
+          try_host oshi curl -sS -m 300 -T LiveContainer.ipa https://oshi.at
+          try_host 0x0 curl -sS -m 300 -F "file=@LiveContainer.ipa" https://0x0.st
+          echo "DONE fail=$FAIL"
