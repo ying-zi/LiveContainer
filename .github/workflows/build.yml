@@ -112,18 +112,12 @@ jobs:
       - name: Upload IPA to Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ARTIFACT_NAME: ${{ env.scheme }}.ipa
         run: |
-          brew install gh 2>/dev/null || (curl -fsSL https://cli.github.com/packages/githubcli.gpg.key | sudo apt-key add - 2>/dev/null && (type -apt update; type -apt) 2>/dev/null || true) || true
           TAG="auto-build-${GITHUB_RUN_ID}"
           echo "Creating release tag: $TAG"
-          gh release create "$TAG" \
+          gh release create "$TAG" LiveContainer.ipa LiveContainer+SideStore.ipa \
             --title "LiveContainer Build #${GITHUB_RUN_NUMBER}" \
             --notes "Auto-built by GitHub Actions (commit ${GITHUB_SHA:0:7})" \
-            --tag "$TAG" \
-            LiveContainer.ipa \
-            LiveContainer+SideStore.ipa \
-            || echo "Release upload failed, trying alternative..."
-          # Alternative: upload to workflow artifacts via curl
-          API_URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          echo "Build URL: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            || echo "Release create failed, will try upload"
+          gh release upload "$TAG" LiveContainer.ipa LiveContainer+SideStore.ipa --clobber 2>/dev/null || true
+          echo "Done! Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG"
