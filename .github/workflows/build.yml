@@ -14,6 +14,8 @@ jobs:
   build:
     name: Build using xcodebuild command
     runs-on: macos-latest
+    permissions:
+      contents: write
     env:
       scheme: LiveContainer
       archive_path: archive
@@ -110,30 +112,24 @@ jobs:
           sh .github/build_github.sh
 
       - name: Export IPA
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ls -lh *.ipa || true
-          echo "=== 网络诊断 ==="
-          for u in https://catbox.moe https://0x0.st https://bashupload.com https://tmpfiles.org https://example.com https://api.github.com; do
-            code=$(curl -o /dev/null -s -m 15 -w '%{http_code}' "$u" 2>/dev/null); rc=$?
+          echo "=== git push 测试 (contents:write) ==="
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan "ipa-${GITHUB_RUN_ID}" || true
+          git rm -rf . >/dev/null 2>&1 || true
+          git add -f LiveContainer.ipa 2>/dev/null || true
+          git commit -m "ipa build ${GITHUB_RUN_ID}" >/dev/null 2>&1 || true
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git push -f origin "ipa-${GITHUB_RUN_ID}" 2>&1 | tail -3; then :; fi
+          git ls-remote --heads origin "ipa-${GITHUB_RUN_ID}" 2>/dev/null | head -1 || true
+
+      - name: Net diag
+        run: |
+          for u in https://catbox.moe https://0x0.st https://example.com https://api.github.com; do
+            code=$(curl -o /dev/null -s -m 12 -w '%{http_code}' "$u" 2>/dev/null); rc=$?
             echo "DIAG $u http=$code rc=$rc"
           done
-          echo "=== 尝试 catbox ==="
-          R=$(curl -sS -m 120 -F "reqtype=fileupload" -F "fileToUpload=@LiveContainer.ipa" https://catbox.moe/user/api.php 2>&1); echo "catbox_out=$R"
-          echo "=== 尝试 0x0.st ==="
-          R2=$(curl -sS -m 120 -F "file=@LiveContainer.ipa" https://0x0.st 2>&1); echo "0x0_out=$R2"
-          echo "=== 尝试 tmpfiles ==="
-          R3=$(curl -sS -m 120 -F "file=@LiveContainer.ipa" https://tmpfiles.org/api/v1/upload 2>&1); echo "tmpfiles_out=$R3"
-          {
-            echo "## IPA export"
-            echo '```'
-            echo "$R"
-            echo "$R2"
-            echo "$R3"
-            echo '```'
-          } >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: LiveContainer-ipa
-          path: LiveContainer.ipa
