@@ -74,7 +74,7 @@ struct LCMultitaskSettingView: View {
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
-                    Slider(value: $dockWidth, in: 20...120) {
+                    Slider(value: $dockWidth, in: 30...120) {
                         Text("lc.settings.dockWidth".loc)
                     }
                     .tint(.accentColor)
@@ -84,5 +84,10 @@ struct LCMultitaskSettingView: View {
         }
         .navigationTitle("lc.appBanner.multitask".loc)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if dockWidth < 30 {
+                dockWidth = 30
+            }
+        }
     }
 }

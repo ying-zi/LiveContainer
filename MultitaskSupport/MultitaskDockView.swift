@@ -142,7 +142,7 @@ class AppInfoProvider {
     public struct Constants {
         // MARK: - Layout & Sizing
         static let defaultDockWidth: CGFloat = 90.0
-        static let minAdaptiveDockWidth: CGFloat = 50.0
+        static let minAdaptiveDockWidth: CGFloat = 30.0
         static let minAdaptiveIconSize: CGFloat = 10.0
         static let maxIconSize: CGFloat = 100.0
         static let minCollapsedHeight: CGFloat = 60.0
@@ -164,7 +164,7 @@ class AppInfoProvider {
         
         // MARK: - Animation & Interaction
         // Fixed size of the mini button shown when the dock is hidden at an edge
-        static let hiddenDockSize: CGFloat = 44.0
+        static let hiddenDockSize: CGFloat = 30.0
         // Opacity of the mini button while hidden, so it always stays visible
         static let hiddenDockOpacity: Double = 0.5
         // Seconds of inactivity after snapping to an edge before the dock collapses
@@ -1061,12 +1061,12 @@ struct MiniDockView: View {
                         .stroke(Color.white.opacity(0.4), lineWidth: 1)
                 )
             Image(systemName: dockManager.isOnRightSide ? "chevron.left" : "chevron.right")
-                .font(.system(size: 18, weight: .bold))
+                .font(.system(size: 14, weight: .bold))
                 .foregroundColor(.white)
         }
         .frame(
-            width: MultitaskDockManager.Constants.hiddenDockSize - 4,
-            height: MultitaskDockManager.Constants.hiddenDockSize - 4
+            width: MultitaskDockManager.Constants.hiddenDockSize,
+            height: MultitaskDockManager.Constants.hiddenDockSize
         )
         .contentShape(Circle())
         .onTapGesture {
