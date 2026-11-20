@@ -215,7 +215,7 @@ struct LCJITLessDiagnoseView : View {
                             Text("AltStore")
                                 .foregroundStyle(.gray)
                         } else if store == .SideStore {
-                            Text("SideStore")
+                            Text("SideKit")
                                 .foregroundStyle(.gray)
                         } else if store == .ADP {
                             Text("lc.common.ADP".loc)
@@ -305,15 +305,6 @@ struct LCJITLessDiagnoseView : View {
                         Text("lc.settings.testJitLess".loc)
                     }
                     .disabled(isJITLessTestInProgress)
-                    
-                    Button {
-                        getHelp()
-                    } label: {
-                        // we apply a super cool rainbow effect so people will never miss this button
-                        Text("lc.jitlessDiag.getHelp".loc)
-                            .bold()
-                            .rainbow()
-                    }
                 }
 
             }
@@ -401,10 +392,6 @@ struct LCJITLessDiagnoseView : View {
             isJITLessTestInProgress = false
         }
     
-    }
-    
-    func getHelp() {
-        UIApplication.shared.open(URL(string: "https://livecontainer.github.io/docs/faq/jit-less-mode-setup")!)
     }
     
     func validateCertificate() {

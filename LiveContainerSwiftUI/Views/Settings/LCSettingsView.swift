@@ -456,37 +456,6 @@ struct LCSettingsView: View {
                 Toggle(isOn: $disableLiveProcessWatchdog) {
                     Text("Disable LiveProcess watchdog termination")
                 }
-                Button {
-                    export()
-                } label: {
-                    Text("Export Cert")
-                }
-                Button {
-                    exportDyld()
-                } label: {
-                    Text("Export Dyld")
-                }
-                Button {
-                    Task { await nukeSideStore() }
-                } label: {
-                    Text("Nuke SideStore")
-                }
-                Button {
-                    exportMainBundle()
-                } label: {
-                    Text("Export Main Bundle")
-                }
-                Button {
-                    resetSymbolOffsets()
-                } label: {
-                    Text("Reset Symbol Offsets")
-                }
-                Button {
-                    presentFLEXOverlay()
-                } label: {
-                    Text("Show FLEX Overlay")
-                }
-                .disabled(NSClassFromString("FLEXManager") == nil)
             } header: {
                 Text("Developer Settings")
             } footer: {
@@ -510,73 +479,6 @@ struct LCSettingsView: View {
         }
     }
 
-    func export() {
-        let fileManager = FileManager.default
-        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        
-        // 1. Copy embedded.mobileprovision from the main bundle to Documents
-        if let embeddedURL = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision") {
-            let destinationURL = documentsURL.appendingPathComponent("embedded.mobileprovision")
-            do {
-                try fileManager.copyItem(at: embeddedURL, to: destinationURL)
-                print("Successfully copied embedded.mobileprovision to Documents.")
-            } catch {
-                print("Error copying embedded.mobileprovision: \(error)")
-            }
-        } else {
-            print("embedded.mobileprovision not found in the main bundle.")
-        }
-        
-        // 2. Read "certData" from UserDefaults and save to cert.p12 in Documents
-        if let certData = LCUtils.certificateData() {
-            let certFileURL = documentsURL.appendingPathComponent("cert.p12")
-            do {
-                try certData.write(to: certFileURL)
-                print("Successfully wrote certData to cert.p12 in Documents.")
-            } catch {
-                print("Error writing certData to cert.p12: \(error)")
-            }
-        } else {
-            print("certData not found in UserDefaults.")
-        }
-        
-        // 3. Read "certPassword" from UserDefaults and save to pass.txt in Documents
-        if let certPassword = LCSharedUtils.certificatePassword() {
-            let passwordFileURL = documentsURL.appendingPathComponent("pass.txt")
-            do {
-                try certPassword.write(to: passwordFileURL, atomically: true, encoding: .utf8)
-                print("Successfully wrote certPassword to pass.txt in Documents.")
-            } catch {
-                print("Error writing certPassword to pass.txt: \(error)")
-            }
-        } else {
-            print("certPassword not found in UserDefaults.")
-        }
-    }
-    
-    func exportMainBundle() {
-        let url = Bundle.main.bundleURL
-        let fileManager = FileManager.default
-        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        do {
-            let destinationURL = documentsURL.appendingPathComponent(url.lastPathComponent)
-            try fileManager.copyItem(at: url, to: destinationURL)
-            print("Successfully copied main bundle to Documents.")
-        } catch {
-            print("Error copying main bundle \(error)")
-        }
-    }
-    
-    func resetSymbolOffsets() {
-        LCUtils.appGroupUserDefault.removeObject(forKey: "symbolOffsetCache")
-    }
-    
-    func presentFLEXOverlay() {
-        let manager = (NSClassFromString("FLEXManager") as? NSObject.Type)?.perform(NSSelectorFromString("sharedManager"))
-            .takeUnretainedValue() as? NSObject
-        manager?.perform(NSSelectorFromString("showExplorer"))
-    }
-    
     func importCertificate() async {
         guard let doImport = await certificateImportAlert.open(), doImport else {
             return
@@ -632,33 +534,6 @@ struct LCSettingsView: View {
         certificateDataFound = false
 
         UserDefaults.standard.set(nil, forKey: "LCAppGroupID")
-    }
-    
-    func nukeSideStore() async {
-        guard let doRemove = await certificateRemoveAlert.open(), doRemove else {
-            return
-        }
-        do {
-            let fm = FileManager.default
-            let sidestoreAppGroupURL = LCPath.lcGroupDocPath.deletingLastPathComponent()
-            try fm.removeItem(at: sidestoreAppGroupURL.appendingPathComponent("Database"))
-            try fm.removeItem(at: sidestoreAppGroupURL.appendingPathComponent("Apps"))
-        } catch {
-            print("wtf \(error)")
-        }
-    }
-    
-    func exportDyld() {
-        let url = URL(fileURLWithPath: "/usr/lib/dyld")
-        let fileManager = FileManager.default
-        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        do {
-            let destinationURL = documentsURL.appendingPathComponent(url.lastPathComponent)
-            try fileManager.copyItem(at: url, to: destinationURL)
-            print("Successfully copied dyld to Documents.")
-        } catch {
-            print("Error copying dyld \(error)")
-        }
     }
     
     func handleURL(url: URL) {
