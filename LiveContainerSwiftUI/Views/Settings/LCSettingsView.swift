@@ -58,12 +58,10 @@ struct LCSettingsView: View {
     @AppStorage("LCJITEnablerType", store: LCUtils.appGroupUserDefault) var JITEnabler: JITEnablerType = .SideJITServer
     
     @AppStorage("LCLoadTweaksToSelf") var injectToLCItelf = false
-    @AppStorage("LCIgnoreJITOnLaunch") var ignoreJITOnLaunch = false
     @AppStorage("LCSelected32BitEmulator", store: LCUtils.appGroupUserDefault) var selected32BitEmulator : String = ""
     @AppStorage("LCKeepSelectedWhenQuit") var keepSelectedWhenQuit = false
     @AppStorage("LCWaitForDebugger") var waitForDebugger = false
     @AppStorage("LCSharePrivateDataWithLiveProcess") var sharePrivateDataWithLiveProcess = false
-    @AppStorage("BKNoWatchdogs") var disableLiveProcessWatchdog = false
     
     @EnvironmentObject private var sharedModel : SharedModel
     @Environment(\.dismiss) private var dismiss
@@ -441,9 +439,6 @@ struct LCSettingsView: View {
                 Toggle(isOn: $injectToLCItelf) {
                     Text("lc.settings.injectLCItself".loc)
                 }
-                Toggle(isOn: $ignoreJITOnLaunch) {
-                    Text("Ignore JIT on Launching App")
-                }
                 Toggle(isOn: $keepSelectedWhenQuit) {
                     Text("Keep Selected App when Quit")
                 }
@@ -452,9 +447,6 @@ struct LCSettingsView: View {
                 }
                 Toggle(isOn: $sharePrivateDataWithLiveProcess) {
                     Text("Allow Private Data access from LiveProcess")
-                }
-                Toggle(isOn: $disableLiveProcessWatchdog) {
-                    Text("Disable LiveProcess watchdog termination")
                 }
             } header: {
                 Text("Developer Settings")

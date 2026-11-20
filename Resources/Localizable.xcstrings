@@ -30213,52 +30213,6 @@
         }
       }
     },
-    "Disable LiveProcess watchdog termination" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disable LiveProcess watchdog termination"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "禁用 LiveProcess 看门狗终止"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "停用 LiveProcess 看門狗終止"
-          }
-        }
-      }
-    },
-    "Ignore JIT on Launching App" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ignore JIT on Launching App"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "启动 App 时忽略 JIT"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "啟動 App 時忽略 JIT"
-          }
-        }
-      }
-    },
     "Keep Selected App when Quit" : {
       "extractionState" : "manual",
       "localizations" : {
