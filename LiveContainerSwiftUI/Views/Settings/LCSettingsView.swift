@@ -81,6 +81,21 @@ struct LCSettingsView: View {
         _store = State(initialValue: LCUtils.store())
     }
     
+    private var versionFooter: some View {
+        HStack(spacing: 6) {
+            Text(verbatim: versionText)
+                .foregroundStyle(.gray)
+                .onTapGesture(count: 5) {
+                    sharedModel.developerMode = true
+                }
+            Text(verbatim: "·")
+                .foregroundStyle(.gray)
+            Text(verbatim: bitInfoText)
+                .font(.caption2)
+                .foregroundStyle(.gray)
+        }
+    }
+    
     private var versionText: String {
         LCUtils.getVersionInfo()
     }
@@ -302,20 +317,7 @@ struct LCSettingsView: View {
                     }
                 }
                 
-                VStack{
-                    HStack(spacing: 6) {
-                        Text(verbatim: versionText)
-                            .foregroundStyle(.gray)
-                            .onTapGesture(count: 5) {
-                                sharedModel.developerMode = true
-                            }
-                        Text(verbatim: "·")
-                            .foregroundStyle(.gray)
-                        Text(verbatim: bitInfoText)
-                            .font(.caption2)
-                            .foregroundStyle(.gray)
-                    }
-                }
+                versionFooter
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .background(Color(UIColor.systemGroupedBackground))
                     .listRowInsets(EdgeInsets())
