@@ -62,8 +62,19 @@ jobs:
       - name: Set file_to_build
         id: file_to_build
         run: |
-          file_to_build=$(ls -A | grep -i '\.xcworkspace$' || ls -A | grep -i '\.xcodeproj$')
-          file_to_build=$(echo "$file_to_build" | awk '{$1=$1;print}')
+          if [ -d "LiveContainer.xcworkspace" ]; then
+            filetype_parameter="workspace"
+            file_to_build="LiveContainer.xcworkspace"
+          elif [ -d "LiveContainer.xcodeproj" ]; then
+            filetype_parameter="project"
+            file_to_build="LiveContainer.xcodeproj"
+          else
+            echo "ERROR: No workspace or project found!"
+            ls -la
+            exit 1
+          fi
+          echo "Found: $filetype_parameter $file_to_build"
+          echo "filetype_parameter=$filetype_parameter" >> $GITHUB_OUTPUT
           echo "file_to_build=$file_to_build" >> $GITHUB_OUTPUT
 
       - name: Archive
