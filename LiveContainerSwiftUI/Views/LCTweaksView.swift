@@ -32,6 +32,8 @@ struct LCTweakFolderView : View {
     
     @State private var errorShow = false
     @State private var errorInfo = ""
+    @State private var successShow = false
+    @State private var successInfo = ""
     
     @StateObject private var newFolderInput = InputHelper()
     
@@ -197,6 +199,12 @@ struct LCTweakFolderView : View {
         } message: {
             Text(errorInfo)
         }
+        .alert("lc.common.success".loc, isPresented: $successShow) {
+            Button("lc.common.ok".loc, action: {
+            })
+        } message: {
+            Text(successInfo)
+        }
         .textFieldAlert(
             isPresented: $newFolderInput.show,
             title: "lc.common.enterNewFolderName".loc,
@@ -339,13 +347,18 @@ struct LCTweakFolderView : View {
     
     func signAllTweaks() async {
         do {
+            isTweakSigning = true
             defer {
                 isTweakSigning = false
             }
             
-            try await LCUtils.signTweaks(tweakFolderUrl: self.baseUrl, force: true) { p in
-                isTweakSigning = true
+            let signedCount = try await LCUtils.signTweaks(tweakFolderUrl: self.baseUrl, force: true)
+            if signedCount == 0 {
+                successInfo = "lc.tweakView.signNothing".loc
+            } else {
+                successInfo = "lc.tweakView.signSuccess %@".localizeWithFormat(String(signedCount))
             }
+            successShow = true
 
         } catch {
             errorInfo = error.localizedDescription

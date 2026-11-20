@@ -10,21 +10,22 @@ import LocalAuthentication
 extension LCUtils {
     public static let appGroupUserDefault = UserDefaults.init(suiteName: LCSharedUtils.appGroupID()) ?? UserDefaults.standard
     
-    public static func signTweaks(tweakFolderUrl: URL, force : Bool = false, progressHandler : ((Progress) -> Void)? = nil) async throws {
+    @discardableResult
+    public static func signTweaks(tweakFolderUrl: URL, force : Bool = false, progressHandler : ((Progress) -> Void)? = nil) async throws -> Int {
         guard LCSharedUtils.certificatePassword() != nil else {
-            return
+            return 0
         }
         let fm = FileManager.default
         // a disabled folder is renamed to .disabled; skip it, it gets signed again once re-enabled
         if !fm.fileExists(atPath: tweakFolderUrl.path) {
             let disabledUrl = tweakFolderUrl.deletingLastPathComponent().appendingPathComponent(tweakFolderUrl.lastPathComponent + ".disabled")
             if fm.fileExists(atPath: disabledUrl.path) {
-                return
+                return 0
             }
         }
         var isFolder :ObjCBool = false
         if(fm.fileExists(atPath: tweakFolderUrl.path, isDirectory: &isFolder) && !isFolder.boolValue) {
-            return
+            return 0
         }
         
         // check if re-sign is needed
@@ -62,7 +63,7 @@ extension LCUtils {
         }
         
         if filesToSign.isEmpty {
-            return
+            return 0
         }
         
         for fileURL in filesToSign {
@@ -86,6 +87,7 @@ extension LCUtils {
                 progressHandler?(progress)
             }
         })
+        return filesToSign.count
     }
         
     private static func authenticateUser(completion: @escaping (Bool, Error?) -> Void) {
