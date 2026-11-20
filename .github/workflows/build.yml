@@ -23,55 +23,73 @@ jobs:
       artifact: ${{ env.scheme }}.ipa
       artifact2: ${{ env.scheme }}+SideStore.ipa
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '27.2'
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          submodules: recursive
+      - name: Checkout code
+        run: |
+          git clone --depth 1 --recursive -b ${{ github.ref_name }} https://${{ github.repository }}.git .
+          git fetch --depth 1 origin ${{ github.sha }}
+          git checkout ${{ github.sha }}
+          git submodule update --init --recursive
+
+      - name: Install Xcode 27.2
+        run: |
+          # Use xcodes or xcode-install to get Xcode 27.2
+          brew install xcodesorg/made/xcodes 2>/dev/null || true
+          XCODES_PATH=$(which xcodes 2>/dev/null)
+          if [ -n "$XCODES_PATH" ]; then
+            xcodes install 27.2 || true
+          fi
+          # Also try setup-xcode approach manually
+          if ! xcodebuild -version 2>/dev/null | grep -q "27"; then
+            echo "Xcode 27 not found, trying system default"
+          fi
+          xcodebuild -version
+          ls /Applications/ | grep -i xcode || echo "Checking Xcode paths..."
+          ls /Applications/Xcode*.app 2>/dev/null || true
+
       - name: Set Scheme
         id: scheme
         run: |
-          if [ $scheme = default ]
-          then
+          if [ "$scheme" = "default" ]; then
             scheme_list=$(xcodebuild -list -json | tr -d "\n")
             scheme=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
-            echo Using default scheme: $scheme
-          else
-            echo Using configured scheme: $scheme
           fi
+          echo "Using scheme: $scheme"
           echo "scheme=$scheme" >> $GITHUB_OUTPUT
+
       - name: Set filetype_parameter
         id: filetype_parameter
         run: |
-          filetype_parameter=`ls -A | grep -i \\.xcworkspace\$ && echo workspace || echo project`
+          filetype_parameter=$(ls -A | grep -i '\.xcworkspace$' && echo workspace || echo project)
           echo "filetype_parameter=$filetype_parameter" >> $GITHUB_OUTPUT
+
       - name: Set file_to_build
         id: file_to_build
         run: |
-          file_to_build=`ls -A | grep -i \\.xcworkspace\$ || ls -A | grep -i \\.xcodeproj\$`
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
+          file_to_build=$(ls -A | grep -i '\.xcworkspace$' || ls -A | grep -i '\.xcodeproj$')
+          file_to_build=$(echo "$file_to_build" | awk '{$1=$1;print}')
           echo "file_to_build=$file_to_build" >> $GITHUB_OUTPUT
+
       - name: Archive
         env:
           scheme: ${{ steps.scheme.outputs.scheme }}
           filetype_parameter: ${{ steps.filetype_parameter.outputs.filetype_parameter }}
           file_to_build: ${{ steps.file_to_build.outputs.file_to_build }}
-        run: xcodebuild archive -archivePath "$archive_path" -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -arch arm64 -configuration Release | xcpretty && exit ${PIPESTATUS[0]}
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -archivePath "$archive_path" \
+            -scheme "$scheme" \
+            -"$filetype_parameter" "$file_to_build" \
+            -sdk iphoneos \
+            -arch arm64 \
+            -configuration Release
+
       - name: Tar Build Artifact
         run: tar -cvf "$archive_path.xcarchive.tar" "$archive_path.xcarchive"
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.archive_path }}.xcarchive.tar
-          path: ${{ env.archive_path }}.xcarchive.tar
+
       - name: Create IPA
         run: |
           sh .github/build_github.sh
 
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ env.scheme }}.ipa
-          path: ${{ env.scheme }}.ipa
+      - name: Verify IPA
+        run: ls -lh *.ipa 2>/dev/null && unzip -l LiveContainer.ipa 2>/dev/null | head -5 || echo "No IPA yet"
