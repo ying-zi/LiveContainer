@@ -109,28 +109,29 @@ jobs:
         run: |
           sh .github/build_github.sh
 
-      - name: Upload IPA to Actions Artifact
+      - name: Upload IPA to Repository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Uploading LiveContainer.ipa..."
-          API_BASE="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          # Get upload URL
-          UPLOAD_URL=$(curl -s -X POST \
+          # Try GitHub artifact API first (without complex URL parsing)
+          echo "=== Trying artifact upload ==="
+          curl -v -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -H "Content-Type: application/json" \
-            -d '{"name":"LiveContainer.ipa"}' \
-            "${API_BASE}/artifacts" | python3 -c "import sys,json; print(json.load(sys.stdin).get('upload_url',''))" 2>/dev/null)
-          if [ -n "$UPLOAD_URL" ]; then
-            echo "Upload URL: $UPLOAD_URL"
-            # Replace template params in upload URL
-            UPLOAD_URL=$(echo "$UPLOAD_URL" | sed 's/{?name,size}/?name=LiveContainer.ipa&size='$(stat -f%z LiveContainer.ipa)/)
-            curl -s -X PUT -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/zip" \
-              -T LiveContainer.ipa "$UPLOAD_URL" && echo "LiveContainer.ipa uploaded!" || echo "Upload failed"
-          else
-            echo "Could not get upload URL"
-          fi
-          # Also try uploading both files via simpler method
-          echo "=== Files available ==="
+            -d '{"name":"LiveContainer"}' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" 2>&1 | head -10
+          echo ""
+          echo "=== Pushing IPA to download branch ==="
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Create a build-download branch with just the IPA files
+          git checkout --orphan "build-${GITHUB_RUN_ID}"
+          git rm -rf . > /dev/null 2>&1 || true
+          cp $GITHUB_WORKSPACE/*.ipa .
           ls -lh *.ipa
+          git add *.ipa
+          git commit -m "LiveContainer IPA build #${GITHUB_RUN_NUMBER}"
+          git push -f origin "build-${GITHUB_RUN_ID}" 2>&1
+          echo "Branch pushed: build-${GITHUB_RUN_ID}"
+          echo "Download: https://github.com/${GITHUB_REPOSITORY}/tree/build-${GITHUB_RUN_ID}"
