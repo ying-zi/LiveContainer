@@ -309,17 +309,6 @@ struct ActivityViewController: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: UIViewControllerRepresentableContext<ActivityViewController>) {}
 }
 
-private class SizedHostingController<Content: View>: UIHostingController<Content> {
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-
-        let size = sizeThatFits(in: UIView.layoutFittingCompressedSize)
-        if preferredContentSize != size {
-            preferredContentSize = size
-        }
-    }
-}
-
 struct IconImageView: View {
     var icon: UIImage
     

@@ -41,7 +41,6 @@ struct LCSettingsView: View {
     @State private var certificateDataFound = false
     
     @StateObject private var certificateImportAlert = YesNoHelper()
-    @StateObject private var certificateImportFromBuiltInSideStoreAlert = YesNoHelper()
     @StateObject private var certificateRemoveAlert = YesNoHelper()
     @StateObject private var certificateImportFileAlert = AlertHelper<URL>()
     @StateObject private var certificateImportPasswordAlert = InputHelper()
@@ -82,6 +81,15 @@ struct LCSettingsView: View {
         _store = State(initialValue: LCUtils.store())
     }
     
+    private var selected32BitEmulatorName: String {
+        guard !selected32BitEmulator.isEmpty else {
+            return "lc.common.none".loc
+        }
+        return sharedModel.arm32EmuApps.first {
+            $0.appInfo.relativeBundlePath == selected32BitEmulator
+        }?.appInfo.displayName() ?? selected32BitEmulator
+    }
+    
     var body: some View {
         NavigationView {
             Form {
@@ -111,7 +119,6 @@ struct LCSettingsView: View {
                                 }
                             }
                         }
-                        
                         NavigationLink {
                             LCJITLessDiagnoseView()
                         } label: {
@@ -124,30 +131,27 @@ struct LCSettingsView: View {
                         Text("lc.settings.jitLessDesc".loc)
                     }
                 }
-                if (store != .Unknown && store != .ADP) || LCUtils.isAppGroupAltStoreLike() {
-                    Section{
-                        NavigationLink {
-                            LCMultiLCManagementView()
-                        } label: {
-                            if sharedModel.multiLCStatus == 0 {
-                                Text("lc.settings.multiLC".loc)
-                            } else if sharedModel.multiLCStatus == 2 {
-                                Text("lc.settings.multiLCIsSecond".loc)
-                            }
-                            
+                Section{
+                    NavigationLink {
+                        LCMultiLCManagementView()
+                    } label: {
+                        if sharedModel.multiLCStatus == 2 {
+                            Text("lc.settings.multiLCIsSecond".loc)
+                        } else {
+                            Text("lc.settings.multiLC".loc)
                         }
-                        .disabled(sharedModel.multiLCStatus == 2)
-                        
-                        if(sharedModel.multiLCStatus == 2) {
-                            NavigationLink {
-                                LCJITLessDiagnoseView()
-                            } label: {
-                                Text("lc.settings.jitlessDiagnose".loc)
-                            }
-                        }
-                    } footer: {
-                        Text("lc.settings.multiLCDesc".loc)
                     }
+                    .disabled(sharedModel.multiLCStatus == 2)
+                    
+                    if(sharedModel.multiLCStatus == 2) {
+                        NavigationLink {
+                            LCJITLessDiagnoseView()
+                        } label: {
+                            Text("lc.settings.jitlessDiagnose".loc)
+                        }
+                    }
+                } footer: {
+                    Text("lc.settings.multiLCDesc".loc)
                 }
                 
                 if #available(iOS 16.1, *) {
@@ -193,16 +197,18 @@ struct LCSettingsView: View {
                     Text("lc.settings.JitDesc".loc)
                 }
                 
-                Section {
-                    Picker(selection: $selected32BitEmulator) {
-                        ForEach(sharedModel.arm32EmuApps, id: \.self) { app in
-                            let appName: String = app.appInfo.displayName()
-                            let appPath: String = app.appInfo.relativeBundlePath!
-                            Text("lc.common.none".loc).tag("")
-                            Text(appName).tag(appPath)
+                if !sharedModel.arm32EmuApps.isEmpty {
+                    Section {
+                        Picker(selection: $selected32BitEmulator) {
+                            ForEach(sharedModel.arm32EmuApps, id: \.self) { app in
+                                let appName: String = app.appInfo.displayName()
+                                let appPath: String = app.appInfo.relativeBundlePath!
+                                Text("lc.common.none".loc).tag("")
+                                Text(appName).tag(appPath)
+                            }
+                        } label: {
+                            Text("lc.settings.selected32BitEmulator".loc)
                         }
-                    } label: {
-                        Text("lc.settings.selected32BitEmulator".loc)
                     }
                 }
                 
@@ -288,37 +294,19 @@ struct LCSettingsView: View {
                     }
                 }
                 
-                Section {
-                    HStack {
-                        Image("GitHub")
-                        Button("LiveContainer/LiveContainer") {
-                            openGitHub()
-                        }
-                    }
-                    HStack {
-                        Image("Twitter")
-                        Button("khanhduytran0") {
-                            openTwitter()
-                        }
-                    }
-                    HStack {
-                        Image("GitHub")
-                        Button("Huge_Black") {
-                            openGitHub2()
-                        }
-                    }
-                } header: {
-                    Text("lc.settings.about".loc)
-                } footer: {
-                    Text("lc.settings.warning".loc)
-                }
-                
                 VStack{
-                    Text(LCUtils.getVersionInfo())
-                        .foregroundStyle(.gray)
-                        .onTapGesture(count: 5) {
-                            sharedModel.developerMode = true
-                        }
+                    HStack(spacing: 6) {
+                        Text(LCUtils.getVersionInfo())
+                            .foregroundStyle(.gray)
+                            .onTapGesture(count: 5) {
+                                sharedModel.developerMode = true
+                            }
+                        Text("·")
+                            .foregroundStyle(.gray)
+                        Text("lc.settings.selected32BitEmulator".loc + ": " + selected32BitEmulatorName)
+                            .font(.caption2)
+                            .foregroundStyle(.gray)
+                    }
                 }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .background(Color(UIColor.systemGroupedBackground))
@@ -417,18 +405,6 @@ struct LCSettingsView: View {
             } message: {
                 Text("lc.settings.removeCertificateDesc".loc)
             }
-            .alert("lc.settings.importCertFromBuiltinSideStore".loc, isPresented: $certificateImportFromBuiltInSideStoreAlert.show) {
-                Button {
-                    certificateImportFromBuiltInSideStoreAlert.close(result: true)
-                } label: {
-                    Text("lc.common.ok".loc)
-                }
-                Button("lc.common.cancel".loc, role: .cancel) {
-                    certificateImportFromBuiltInSideStoreAlert.close(result: false)
-                }
-            } message: {
-                Text("lc.settings.importCertFromBuiltinSideStoreDesc".loc)
-            }
             .betterFileImporter(isPresented: $certificateImportFileAlert.show, types: [.p12], multiple: false, callback: { fileUrls in
                 certificateImportFileAlert.close(result: fileUrls[0])
             }, onDismiss: {
@@ -479,17 +455,6 @@ struct LCSettingsView: View {
         return dismissable ? "lc.tabView.settings".loc : ""
     }
 
-    func openGitHub() {
-        UIApplication.shared.open(URL(string: "https://github.com/LiveContainer/LiveContainer")!)
-    }
-    
-    func openGitHub2() {
-        UIApplication.shared.open(URL(string: "https://github.com/hugeBlack")!)
-    }
-    
-    func openTwitter() {
-        UIApplication.shared.open(URL(string: "https://twitter.com/khanhduytran0")!)
-    }
 
     func clearNotifications() {
         let notificationCenter = UNUserNotificationCenter.current()
@@ -603,61 +568,6 @@ struct LCSettingsView: View {
     }
     
     func importCertificateFromSideStore() async {
-        if UserDefaults.sideStoreExist() {
-            if let ans = await certificateImportFromBuiltInSideStoreAlert.open(), ans {
-                let query: [String: Any] = [
-                    kSecClass as String: kSecClassGenericPassword,
-                    kSecAttrAccount as String: "signingCertificate",
-                    kSecReturnData as String: true,
-                    kSecMatchLimit as String: kSecMatchLimitOne,
-                    kSecAttrService as String: "com.kdt.livecontainer",
-                    kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
-                ]
-                
-                var item: CFTypeRef?
-                let status = SecItemCopyMatching(query as CFDictionary, &item)
-                
-                guard status == errSecSuccess else {
-                    if status == errSecItemNotFound {
-                        errorInfo = "lc.settings.importCertFromBuiltinSideStore.certNotFounndErr".loc
-                        errorShow = true
-                    } else {
-                        errorInfo = "Keychain read error: \(status)"
-                        errorShow = true
-                    }
-                    return
-                }
-                
-                guard let data = item as? Data else {
-                    errorInfo = "Failed to decode certificate data"
-                    errorShow = true
-                    return
-                }
-                
-                let passwordQuery: [String: Any] = [
-                    kSecClass as String: kSecClassGenericPassword,
-                    kSecAttrAccount as String: "signingCertificatePassword",
-                    kSecReturnData as String: true,
-                    kSecMatchLimit as String: kSecMatchLimitOne,
-                    kSecAttrService as String: "com.kdt.livecontainer",
-                    kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
-                ]
-                
-                var passwordItem: CFTypeRef?
-                let passwordStatus = SecItemCopyMatching(passwordQuery as CFDictionary, &passwordItem)
-                var password = ""
-                if passwordStatus == errSecSuccess,
-                   let passwordData = passwordItem as? Data,
-                   let pwd = String(data: passwordData, encoding: .utf8) {
-                    password = pwd
-                }
-                
-                onSideStoreCertificateCallback(certificateData: data, password: password)
-                
-                return
-            }
-        }
-        
         let storeScheme : String
         if store == .AltStore {
             storeScheme = "altstore-classic"

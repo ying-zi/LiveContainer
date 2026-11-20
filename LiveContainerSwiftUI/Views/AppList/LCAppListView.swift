@@ -71,7 +71,6 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     @State private var navigateTo : AnyView?
     @State private var isNavigationActive = false
     
-    @State private var helpPresent = false
     
     @State private var customSortViewPresent = false
     
@@ -79,7 +78,6 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     @EnvironmentObject private var sharedAppSortManager : LCAppSortManager
     
     @AppStorage("LCMultitaskMode", store: LCUtils.appGroupUserDefault) var multitaskMode: MultitaskMode = .virtualWindow
-    @AppStorage("darkModeIcon", store: LCUtils.appGroupUserDefault) private var darkModeIcon = false
     
     @State private var isViewAppeared = false
     
@@ -234,21 +232,13 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    if(UserDefaults.sideStoreExist()) {
-                        Button {
-                            LCUtils.openSideStore(delegate: self)
-                        } label: {
-                            IconImageView(icon: BuiltInSideStoreAppInfo.shared.iconIsDarkIcon(darkModeIcon))
-                                .frame(width: UIFont.preferredFont(forTextStyle: .body).lineHeight, height: UIFont.preferredFont(forTextStyle: .body).lineHeight)
-
+                    Button {
+                        if let url = URL(string: "sidekite://") {
+                            UIApplication.shared.open(url)
                         }
-                    } else {
-                        Button("Help", systemImage: "questionmark") {
-                            helpPresent = true
-                        }
+                    } label: {
+                        Image(systemName: "signature")
                     }
-                    
-
                 }
                 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -388,9 +378,6 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
         }
         .fullScreenCover(isPresented: $safariViewOpened) {
             SafariView(url: $safariViewURL)
-        }
-        .sheet(isPresented: $helpPresent) {
-            LCHelpView(isPresent: $helpPresent)
         }
         .sheet(isPresented: $customSortViewPresent) {
             LCCustomSortView()
@@ -1007,10 +994,6 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
             }
         }
         
-        if appFound == nil && bundleId == "builtinSideStore" {
-            appFound = LCAppModel(appInfo: BuiltInSideStoreAppInfo.shared)
-        }
-        
         if isFoundAppLocked && !sharedModel.isHiddenAppUnlocked {
             do {
                 let result = try await LCUtils.authenticateUser()
@@ -1164,12 +1147,6 @@ struct LCAppListView : View, LCAppBannerDelegate, LCAppModelDelegate {
     func handleURL(url : URL) {
         if url.isFileURL {
             Task { await installFromUrl(urlStr: url.absoluteString) }
-            return
-        }
-        
-        if url.scheme == "sidestore" && UserDefaults.sideStoreExist() {
-            UserDefaults.standard.setValue(url.absoluteString, forKey: "launchAppUrlScheme")
-            LCUtils.openSideStore(delegate: self)
             return
         }
         

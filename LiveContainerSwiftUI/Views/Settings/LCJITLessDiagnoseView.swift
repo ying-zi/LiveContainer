@@ -359,15 +359,7 @@ struct LCJITLessDiagnoseView : View {
         
         if let fetchedAppGroupId = LCSharedUtils.appGroupID() {
             appGroupId = fetchedAppGroupId
-            if UserDefaults.sideStoreExist() {
-                if fetchedAppGroupId == "group.com.SideStore.SideStore." + teamId {
-                    appGroupIdColor = .green
-                } else {
-                    appGroupIdColor = .orange
-                }
-            } else {
-                appGroupIdColor = .green
-            }
+            appGroupIdColor = .green
         } else {
             appGroupId = "lc.common.unknown".loc
             appGroupIdColor = .red
