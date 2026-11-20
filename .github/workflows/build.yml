@@ -111,29 +111,16 @@ jobs:
         run: |
           sh .github/build_github.sh
 
-      - name: Export IPA
+      - name: Publish IPA Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -x
-          ls -lh *.ipa || true
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          echo "=== 1) 推送到分支 ==="
-          git checkout --orphan "ipa-${GITHUB_RUN_ID}" || true
-          git rm -rf . >/dev/null 2>&1 || true
-          git add -f LiveContainer.ipa 2>/dev/null || true
-          git commit -m "ipa build ${GITHUB_RUN_ID}" >/dev/null 2>&1 || true
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push -f origin "ipa-${GITHUB_RUN_ID}" || true
-
-          echo "=== 2) 发布 Release ==="
+          ls -lh *.ipa
           TAG="ipa-latest"
           gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag >/dev/null 2>&1 || true
           gh release create "$TAG" LiveContainer.ipa \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "LiveContainer 纯净版 (构建 #${GITHUB_RUN_NUMBER})" \
-            --notes "自动构建：commit ${GITHUB_SHA:0:7} / 运行 ${GITHUB_RUN_ID}" || true
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[] | "\(.name) \(.size)"' || true
+            --notes "自动构建 commit ${GITHUB_SHA:0:7}，运行 ${GITHUB_RUN_ID}" || exit 1
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[] | "\(.name) \(.size)"'
