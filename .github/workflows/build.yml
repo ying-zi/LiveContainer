@@ -115,21 +115,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -x
           ls -lh *.ipa || true
-          echo "=== git push 测试 (contents:write) ==="
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          echo "=== 1) 推送到分支 ==="
           git checkout --orphan "ipa-${GITHUB_RUN_ID}" || true
           git rm -rf . >/dev/null 2>&1 || true
           git add -f LiveContainer.ipa 2>/dev/null || true
           git commit -m "ipa build ${GITHUB_RUN_ID}" >/dev/null 2>&1 || true
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          if git push -f origin "ipa-${GITHUB_RUN_ID}" 2>&1 | tail -3; then :; fi
-          git ls-remote --heads origin "ipa-${GITHUB_RUN_ID}" 2>/dev/null | head -1 || true
+          git push -f origin "ipa-${GITHUB_RUN_ID}" || true
 
-      - name: Net diag
-        run: |
-          for u in https://catbox.moe https://0x0.st https://example.com https://api.github.com; do
-            code=$(curl -o /dev/null -s -m 12 -w '%{http_code}' "$u" 2>/dev/null); rc=$?
-            echo "DIAG $u http=$code rc=$rc"
-          done
+          echo "=== 2) 发布 Release ==="
+          TAG="ipa-latest"
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag >/dev/null 2>&1 || true
+          gh release create "$TAG" LiveContainer.ipa \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "LiveContainer 纯净版 (构建 #${GITHUB_RUN_NUMBER})" \
+            --notes "自动构建：commit ${GITHUB_SHA:0:7} / 运行 ${GITHUB_RUN_ID}" || true
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[] | "\(.name) \(.size)"' || true
