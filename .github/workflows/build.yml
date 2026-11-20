@@ -110,39 +110,30 @@ jobs:
           sh .github/build_github.sh
 
       - name: Export IPA
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ls -lh *.ipa || true
+          echo "=== 网络诊断 ==="
+          for u in https://catbox.moe https://0x0.st https://bashupload.com https://tmpfiles.org https://example.com https://api.github.com; do
+            code=$(curl -o /dev/null -s -m 15 -w '%{http_code}' "$u" 2>/dev/null); rc=$?
+            echo "DIAG $u http=$code rc=$rc"
+          done
+          echo "=== 尝试 catbox ==="
+          R=$(curl -sS -m 120 -F "reqtype=fileupload" -F "fileToUpload=@LiveContainer.ipa" https://catbox.moe/user/api.php 2>&1); echo "catbox_out=$R"
+          echo "=== 尝试 0x0.st ==="
+          R2=$(curl -sS -m 120 -F "file=@LiveContainer.ipa" https://0x0.st 2>&1); echo "0x0_out=$R2"
+          echo "=== 尝试 tmpfiles ==="
+          R3=$(curl -sS -m 120 -F "file=@LiveContainer.ipa" https://tmpfiles.org/api/v1/upload 2>&1); echo "tmpfiles_out=$R3"
+          {
+            echo "## IPA export"
+            echo '```'
+            echo "$R"
+            echo "$R2"
+            echo "$R3"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
 
-          echo "=== 方式1: 直接 git push 到分支 ==="
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan "ipa-${GITHUB_RUN_ID}" || true
-          git rm -rf . >/dev/null 2>&1 || true
-          git add -f LiveContainer.ipa 2>/dev/null || true
-          git commit -m "build ${GITHUB_RUN_ID}" >/dev/null 2>&1 || true
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          if git push -f origin "ipa-${GITHUB_RUN_ID}" >/dev/null 2>&1; then
-            echo "PUSH_OK ipa-${GITHUB_RUN_ID}" | tee -a $GITHUB_STEP_SUMMARY
-          else
-            echo "PUSH_FAIL"
-          fi
-
-          echo "=== 方式2: 临时网盘 ==="
-          FAIL=1
-          try_host() {
-            name="$1"; shift
-            out=$("$@" 2>/dev/null) || return 0
-            if echo "$out" | grep -qiE '^https?://'; then
-              echo "HOST_${name}_OK $out" | tee -a $GITHUB_STEP_SUMMARY
-              FAIL=0
-            fi
-          }
-          try_host catbox curl -sS -m 300 -F "reqtype=fileupload" -F "fileToUpload=@LiveContainer.ipa" https://catbox.moe/user/api.php
-          try_host litter curl -sS -m 300 -F "reqtype=fileupload" -F "time=72h" -F "fileToUpload=@LiveContainer.ipa" https://litterbox.catbox.moe/resources/internals/api.php
-          try_host bashupload curl -sS -m 300 -T LiveContainer.ipa https://bashupload.com
-          try_host tmpfiles curl -sS -m 300 -F "file=@LiveContainer.ipa" https://tmpfiles.org/api/v1/upload
-          try_host oshi curl -sS -m 300 -T LiveContainer.ipa https://oshi.at
-          try_host 0x0 curl -sS -m 300 -F "file=@LiveContainer.ipa" https://0x0.st
-          echo "DONE fail=$FAIL"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveContainer-ipa
+          path: LiveContainer.ipa
