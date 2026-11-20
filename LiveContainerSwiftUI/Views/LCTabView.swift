@@ -36,11 +36,17 @@ struct LCTabView: View {
                     .tag(LCTabIdentifier.tweaks)
             }
             
-            LCSettingsView()
-                .tabItem {
-                    Label("lc.tabView.settings".loc, systemImage: "gearshape.fill")
-                }
-                .tag(LCTabIdentifier.settings)
+            // 多任务模式下「模块」页不可用，此时保留设置 tab 作为入口
+            if sharedModel.multiLCStatus == 2 {
+                LCSettingsView()
+                    .tabItem {
+                        Label("lc.tabView.settings".loc, systemImage: "gearshape.fill")
+                    }
+                    .tag(LCTabIdentifier.settings)
+            }
+        }
+        .fullScreenCover(isPresented: $sharedModel.showSettings) {
+            LCSettingsView(dismissable: true)
         }
         .downloadAlert(helper: downloadHelper)
         .environmentObject(downloadHelper)
@@ -126,7 +132,7 @@ struct LCTabView: View {
             case "livecontainer-launch", "install", "open-web-page", "open-url":
                 sharedModel.selectedTab = .apps
             case "certificate":
-                sharedModel.selectedTab = .settings
+                sharedModel.showSettings = true
             case "source":
                 // Sources tab 已移除，统一跳到 Apps
                 sharedModel.selectedTab = .apps

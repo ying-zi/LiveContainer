@@ -69,12 +69,15 @@ struct LCSettingsView: View {
     @AppStorage("BKNoWatchdogs") var disableLiveProcessWatchdog = false
     
     @EnvironmentObject private var sharedModel : SharedModel
+    @Environment(\.dismiss) private var dismiss
     
     @State private var isViewAppeared = false
     
     let storeName = LCUtils.getStoreName()
+    private let dismissable: Bool
     
-    init() {
+    init(dismissable: Bool = false) {
+        self.dismissable = dismissable
         _certificateDataFound = State(initialValue: LCSharedUtils.certificatePassword() != nil)
         _store = State(initialValue: LCUtils.store())
     }
@@ -443,17 +446,28 @@ struct LCSettingsView: View {
                 }
             )
         }
+        .toolbar {
+            if dismissable {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("lc.common.close".loc) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .navigationTitle(dismissable ? "lc.tabView.settings".loc : "")
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear() {
             if !isViewAppeared {
-                guard sharedModel.selectedTab == .settings, let link = sharedModel.deepLink else { return }
+                guard sharedModel.selectedTab == .settings || sharedModel.showSettings,
+                      let link = sharedModel.deepLink else { return }
                 sharedModel.deepLink = nil
                 handleURL(url: link)
                 isViewAppeared = true
             }
         }
         .onChange(of: sharedModel.deepLink) { link in
-            guard sharedModel.selectedTab == .settings, let link else { return }
+            guard sharedModel.selectedTab == .settings || sharedModel.showSettings, let link else { return }
             sharedModel.deepLink = nil
             handleURL(url: link)
         }
